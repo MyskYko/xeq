@@ -1,0 +1,3 @@
+[submodule "program/lib/bdd"]
+	path = program/lib/bdd
+	url = https://github.com/MyskYko/bdd.git
