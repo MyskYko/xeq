@@ -1,14 +1,10 @@
-#include "node.h"
-
 #include <iostream>
 #include <fstream>
-#include <string>
 #include <sstream>
-#include <vector>
-#include <set>
-#include <map>
 #include <algorithm>
 #include <cctype>
+
+#include "node.h"
 
 using namespace std;
 
@@ -132,7 +128,7 @@ namespace nodecircuit {
 	else if(head == "_DC") {
 	  p->type = NODE_DC;
 	}
-	else if(head == "_MUX") {
+	else if(head == "_HMUX") {
 	  p->type = NODE_MUX;
 	}
 	else {
@@ -140,8 +136,9 @@ namespace nodecircuit {
 	}
       }
     }
+  }
 
-    /*
+  void Circuit::PrintNodes() {
     for(auto p : all_nodes) {
       cout << "Node " << p->name << " {" << endl;
       cout << "\ttype : " << p->type << endl;
@@ -157,7 +154,6 @@ namespace nodecircuit {
       }
       cout << "}" << endl << endl;
     }
-    */
   }
 
   void GetGatesRec(Node * p, NodeVector &gates) {
