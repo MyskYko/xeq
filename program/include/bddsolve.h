@@ -3,7 +3,6 @@
 #include <iostream>
 #include <optional>
 #include <algorithm>
-#include <vector>
 
 #include "node.h"
 #include "AtBddMan.hpp"

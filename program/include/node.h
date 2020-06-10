@@ -1,5 +1,4 @@
-#ifndef PARSER_NODE_H
-#define PARSER_NODE_H
+#pragma once
 
 #include <string>
 #include <vector>
@@ -93,5 +92,3 @@ namespace nodecircuit {
   };
 
 } // namespace nodecircuit
-
-#endif //PARSER_NODE_H
