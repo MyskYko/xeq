@@ -10,4 +10,5 @@ include_directories(${CMAKE_CURRENT_SOURCE_DIR}/include)
 
 file(GLOB FILENAMES ${CMAKE_CURRENT_SOURCE_DIR}/src/*.cpp)
 add_executable(xeq ${FILENAMES})
-target_link_libraries(xeq bdd atbdd)
+target_link_libraries(xeq bdd atbdd glucose)
+target_include_directories(xeq PRIVATE ${CMAKE_CURRENT_SOURCE_DIR}/lib/glucose)
