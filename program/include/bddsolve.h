@@ -171,10 +171,10 @@ void BddSolve(nodecircuit::Circuit &gf, nodecircuit::Circuit &rf, std::vector<bo
   p.fRealloc = 1;
   p.fGC = 1;
   p.nGC = 744068;
-  p.fReo = 1;
   p.nReo = 1000;
   p.nMaxGrowth = 59;
   Bdd::AtBddMan bdd(gf.inputs.size(), p);
+  bdd.Dvr();
   using node = Bdd::AtBddNode;
 
   std::vector<node> gffs;
