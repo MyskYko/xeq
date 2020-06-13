@@ -1,7 +1,7 @@
 #pragma once
 
 #include <iostream>
-#include <optional>
+#include <experimental/optional>
 #include <algorithm>
 
 #include "node.h"
@@ -21,8 +21,8 @@ void Build(nodecircuit::Circuit &c, Bdd::BddMan<node> &bdd, std::vector<node> &f
   for(auto p : c.outputs) {
     nfanout[p]++;
   }
-  std::map<nodecircuit::Node *, std::optional<node> > f;
-  std::map<nodecircuit::Node *, std::optional<node> > g;
+  std::map<nodecircuit::Node *, std::experimental::optional<node> > f;
+  std::map<nodecircuit::Node *, std::experimental::optional<node> > g;
   for(int i = 0; i < c.inputs.size(); i++) {
     f[c.inputs[i]] = bdd.IthVar(i);
     g[c.inputs[i]] = bdd.Const0();
@@ -137,8 +137,8 @@ void Build(nodecircuit::Circuit &c, Bdd::BddMan<node> &bdd, std::vector<node> &f
     for(auto q : p->inputs) {
       nfanout[q]--;
       if(nfanout[q] == 0) {
-	f[q] = std::nullopt;
-	g[q] = std::nullopt;
+	f[q] = std::experimental::nullopt;
+	g[q] = std::experimental::nullopt;
       }
     }
   }
