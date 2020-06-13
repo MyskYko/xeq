@@ -3,6 +3,7 @@
 #include <algorithm>
 
 #include "node.h"
+#include "bddsolve.h"
 
 int main(int argc, char **argv) {
   if(argc < 4) {
@@ -46,6 +47,7 @@ int main(int argc, char **argv) {
   }
   
   // Solve(g, r, result);
+  BddSolve(g, r, result);
 
   std::ofstream f(oname);
   if(!f) {
