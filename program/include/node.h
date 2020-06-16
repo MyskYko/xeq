@@ -54,6 +54,7 @@ namespace nodecircuit {
     void ReadVerilog(std::string filename);
     void GetGates(NodeVector &gates);
     void PrintNodes();
+    void WriteBinaryBLIF(std::string Filename, std::string XValueMark);
     
   public:
     std::string name;

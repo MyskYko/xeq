@@ -156,6 +156,145 @@ namespace nodecircuit {
     }
   }
 
+  void WriteBinaryBLIFGate(ostream& Outfile, Node* GateNode, std::string XValueMark){
+	  if(GateNode->is_input||GateNode->is_output) return;
+	  switch (GateNode->type) {
+	  	/*
+	  	 *  NODE_OTHER,
+		    NODE_BUF,
+		    NODE_NOT,
+		    NODE_AND,
+		    NODE_NAND,
+		    NODE_OR,
+		    NODE_NOR,
+		    NODE_XOR,
+		    NODE_XNOR,
+		    NODE_DC,
+		    NODE_MUX
+	  	 */
+	      case NODE_BUF:
+		      Outfile <<".names " <<GateNode->inputs[0]->name <<" " <<GateNode->outputs[0]->name <<std::endl;
+		      Outfile <<"1 1\n";
+		      Outfile <<".names " <<GateNode->inputs[0]->name <<XValueMark <<" " <<GateNode->outputs[0]->name
+		                <<XValueMark <<std::endl;
+		      Outfile <<"1 1\n";
+		      break;
+          case NODE_NOT:
+	          Outfile <<".names " <<GateNode->inputs[0]->name <<" " <<GateNode->outputs[0]->name <<std::endl;
+			  Outfile <<"0 1\n";
+			  Outfile <<".names " <<GateNode->inputs[0]->name <<XValueMark <<" " <<GateNode->outputs[0]->name
+			          <<XValueMark <<std::endl;
+			  Outfile <<"1 1\n";
+			  break;
+	  	  case NODE_AND://ASSUMING AND2
+		      Outfile <<".names " <<GateNode->inputs[0]->name <<" " <<GateNode->inputs[0]->name <<XValueMark <<" "
+		      <<GateNode->inputs[1]->name <<" " <<GateNode->inputs[1]->name <<XValueMark <<" "
+		      <<GateNode->outputs[0]->name <<std::endl;
+			  Outfile <<"11-- 1\n";
+			  Outfile <<".names " <<GateNode->inputs[0]->name <<" " <<GateNode->inputs[0]->name <<XValueMark <<" "
+			          <<GateNode->inputs[1]->name <<" " <<GateNode->inputs[1]->name <<XValueMark <<" "
+			          <<GateNode->outputs[0]->name <<XValueMark <<std::endl;
+			  Outfile <<"--11 1\n" <<"1-01 1\n" <<"-110 1\n" ;
+			  break;
+		  case NODE_OR://ASSUMING OR2
+			  Outfile <<".names " <<GateNode->inputs[0]->name <<" " <<GateNode->inputs[0]->name <<XValueMark <<" "
+			          <<GateNode->inputs[1]->name <<" " <<GateNode->inputs[1]->name <<XValueMark <<" "
+			          <<GateNode->outputs[0]->name <<std::endl;
+			  Outfile <<"1--- 1\n" <<"-1-- 1\n";
+			  Outfile <<".names " <<GateNode->inputs[0]->name <<" " <<GateNode->inputs[0]->name <<XValueMark <<" "
+			          <<GateNode->inputs[1]->name <<" " <<GateNode->inputs[1]->name <<XValueMark <<" "
+			          <<GateNode->outputs[0]->name <<XValueMark <<std::endl;
+			  Outfile <<"--11 1\n" <<"0-01 1\n" <<"-010 1\n" ;
+			  break;
+		  case NODE_XOR://ASSUMING XOR2
+			  Outfile <<".names " <<GateNode->inputs[0]->name <<" " <<GateNode->inputs[0]->name <<XValueMark <<" "
+			          <<GateNode->inputs[1]->name <<" " <<GateNode->inputs[1]->name <<XValueMark <<" "
+			          <<GateNode->outputs[0]->name <<std::endl;
+			  Outfile <<"10-- 1\n" <<"01-- 1\n";
+			  Outfile <<".names " <<GateNode->inputs[0]->name <<" " <<GateNode->inputs[0]->name <<XValueMark <<" "
+			          <<GateNode->inputs[1]->name <<" " <<GateNode->inputs[1]->name <<XValueMark <<" "
+			          <<GateNode->outputs[0]->name <<XValueMark <<std::endl;
+			  Outfile <<"---1 1\n" <<"--1- 1\n" ;
+			  break;
+		  case NODE_MUX://ASSUMING INPUTS[0~2] S in0 in1
+			  Outfile <<".names " <<GateNode->inputs[0]->name <<" " <<GateNode->inputs[0]->name <<XValueMark <<" "
+			          <<GateNode->inputs[1]->name <<" " <<GateNode->inputs[1]->name <<XValueMark <<" "
+					  <<GateNode->inputs[2]->name <<" " <<GateNode->inputs[2]->name <<XValueMark <<" "
+			          <<GateNode->outputs[0]->name <<std::endl;
+			  Outfile <<"01-00- 1\n" <<"1-10-0 1\n" <<"-11-00 1\n";
+			  Outfile <<".names " <<GateNode->inputs[0]->name <<" " <<GateNode->inputs[0]->name <<XValueMark <<" "
+			          <<GateNode->inputs[1]->name <<" " <<GateNode->inputs[1]->name <<XValueMark <<" "
+					  <<GateNode->inputs[2]->name <<" " <<GateNode->inputs[2]->name <<XValueMark <<" "
+			          <<GateNode->outputs[0]->name <<XValueMark <<std::endl;
+			  Outfile <<"---11- 1\n" <<"---1-1 1\n" <<"-1-10- 1\n" <<"--11-0 1\n" <<"0--01- 1\n" <<"1--0-1 1\n" ;
+			  break;
+	  	  case NODE_DC://ASSUMING inputs[0~1] D C
+		      Outfile <<".names " <<GateNode->inputs[0]->name <<" " <<GateNode->inputs[0]->name <<XValueMark <<" "
+		              <<GateNode->inputs[1]->name <<" " <<GateNode->inputs[1]->name <<XValueMark <<" "
+		              <<GateNode->outputs[0]->name <<std::endl;
+			  Outfile <<"010- 1\n";
+			  Outfile <<".names " <<GateNode->inputs[0]->name <<" " <<GateNode->inputs[0]->name <<XValueMark <<" "
+			          <<GateNode->inputs[1]->name <<" " <<GateNode->inputs[1]->name <<XValueMark <<" "
+			          <<GateNode->outputs[0]->name <<XValueMark <<std::endl;
+			  Outfile <<"---1 1\n" <<"--1- 1\n"  <<"1--- 1\n";
+			  break;
+	  	case NODE_NAND:
+		    Outfile <<".names " <<GateNode->inputs[0]->name <<" " <<GateNode->inputs[0]->name <<XValueMark <<" "
+		            <<GateNode->inputs[1]->name <<" " <<GateNode->inputs[1]->name <<XValueMark <<" "
+		            <<GateNode->outputs[0]->name <<std::endl;
+			  Outfile <<"0--- 1\n" "-0-- 1\n";
+			  Outfile <<".names " <<GateNode->inputs[0]->name <<" " <<GateNode->inputs[0]->name <<XValueMark <<" "
+			          <<GateNode->inputs[1]->name <<" " <<GateNode->inputs[1]->name <<XValueMark <<" "
+			          <<GateNode->outputs[0]->name <<XValueMark <<std::endl;
+			  Outfile <<"--11 1\n" <<"1-01 1\n" <<"-110 1\n" ;
+			  break;
+	  	case NODE_NOR:
+		    Outfile <<".names " <<GateNode->inputs[0]->name <<" " <<GateNode->inputs[0]->name <<XValueMark <<" "
+		            <<GateNode->inputs[1]->name <<" " <<GateNode->inputs[1]->name <<XValueMark <<" "
+		            <<GateNode->outputs[0]->name <<std::endl;
+			  Outfile <<"00-- 1\n" ;
+			  Outfile <<".names " <<GateNode->inputs[0]->name <<" " <<GateNode->inputs[0]->name <<XValueMark <<" "
+			          <<GateNode->inputs[1]->name <<" " <<GateNode->inputs[1]->name <<XValueMark <<" "
+			          <<GateNode->outputs[0]->name <<XValueMark <<std::endl;
+			  Outfile <<"--11 1\n" <<"0-01 1\n" <<"-010 1\n" ;
+			  break;
+	  	case NODE_XNOR:
+		    Outfile <<".names " <<GateNode->inputs[0]->name <<" " <<GateNode->inputs[0]->name <<XValueMark <<" "
+		            <<GateNode->inputs[1]->name <<" " <<GateNode->inputs[1]->name <<XValueMark <<" "
+		            <<GateNode->outputs[0]->name <<std::endl;
+			  Outfile <<"00-- 1\n" <<"11-- 1";
+			  Outfile <<".names " <<GateNode->inputs[0]->name <<" " <<GateNode->inputs[0]->name <<XValueMark <<" "
+			          <<GateNode->inputs[1]->name <<" " <<GateNode->inputs[1]->name <<XValueMark <<" "
+			          <<GateNode->outputs[0]->name <<XValueMark <<std::endl;
+			  Outfile <<"---1 1\n" <<"--1- 1\n" ;
+			  break;
+		default:
+			  return;
+	  }
+  }
+
+  void Circuit::WriteBinaryBLIF(std::string Filename, std::string XValueMark = "_") {
+  	// output and input is the original ports, and input_ output_ is the port represent X by default
+  	ofstream Outfile (Filename);
+  	Outfile << ".model " << name << std::endl;
+
+  	Outfile << ".inputs ";
+  	for (auto input: inputs){
+  		Outfile << input <<" " <<input <<XValueMark <<" ";
+  	}
+  	Outfile <<endl;
+  	Outfile << ".outputs ";
+  	for (auto  output: outputs){
+	    Outfile << output <<" " <<output <<XValueMark <<" ";
+  	}
+  	Outfile <<endl;
+  	for (auto Gatenode : all_nodes){
+  		WriteBinaryBLIFGate(Outfile, Gatenode, XValueMark);
+  	}
+  	Outfile <<".end\n";
+  	Outfile.close();
+  }
+
   void GetGatesRec(Node * p, NodeVector &gates) {
     if(p->is_input) return;
     if(p->mark) return;
