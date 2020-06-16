@@ -127,6 +127,7 @@ namespace nodecircuit {
 	}
 	else if(head == "_DC") {
 	  p->type = NODE_DC;
+	  dc.push_back(p);
 	}
 	else if(head == "_HMUX") {
 	  p->type = NODE_MUX;
