@@ -42,6 +42,7 @@ So, when D is 1, we divided the discussion into two cases: D->O and D->~O.
 Therefore, to traverse all the potential cases, we are creating 2^dc ("dc" represents the number of dc gates in that circuit) sat problems for one circuit.
 
 Application:
+
 For the class of Circuit in "node.h", a data member called "dc", which is of data type NodeVector, is added, it covers all the nodes representing dc gates in the circuit. For the same reason, "node.cpp" is modified correspondingly as well.
 And a fuction called "GetNodeIndex" is added as a funtion member of the class Circuit, it is used for attaining the index of a node in the vector of "all_nodes".
 To test the sat-based method, "satsolve.h" is supposed to be included, and use the command of "SatSolve(gf, rf, result)" for operation.
