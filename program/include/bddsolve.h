@@ -124,7 +124,7 @@ void Build(nodecircuit::Circuit &c, Bdd::BddMan<node> &bdd, std::vector<node> &f
       g[p] = bdd.Or(bdd.Ite(*f[p->inputs[2]],
 			    *g[p->inputs[1]],
 			    *g[p->inputs[0]]),
-		    bdd.And(*f[p->inputs[2]],
+		    bdd.And(*g[p->inputs[2]],
 			    bdd.Or(bdd.Or(*g[p->inputs[1]],
 					  *g[p->inputs[0]]),
 				   bdd.Xor(*f[p->inputs[1]],
