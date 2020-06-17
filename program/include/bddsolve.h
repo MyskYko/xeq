@@ -57,20 +57,20 @@ void Build(nodecircuit::Circuit &c, Bdd::BddMan<node> &bdd, std::vector<node> &f
       f[p] = bdd.Const1();
       g[p] = bdd.Const0();
       for(auto q : p->inputs) {
-	f[p] = bdd.And(*f[p], *f[q]);
 	g[p] = bdd.Or(bdd.Or(bdd.And(*f[p], *g[q]),
 			     bdd.And(*f[q], *g[p])),
 		      bdd.And(*g[p], *g[q]));
+	f[p] = bdd.And(*f[p], *f[q]);
       }
       break;
     case nodecircuit::NODE_NAND:
       f[p] = bdd.Const1();
       g[p] = bdd.Const0();
       for(auto q : p->inputs) {
-	f[p] = bdd.And(*f[p], *f[q]);
 	g[p] = bdd.Or(bdd.Or(bdd.And(*f[p], *g[q]),
 			     bdd.And(*f[q], *g[p])),
 		      bdd.And(*g[p], *g[q]));
+	f[p] = bdd.And(*f[p], *f[q]);
       }
       f[p] = bdd.Not(*f[p]);
       break;
@@ -78,20 +78,20 @@ void Build(nodecircuit::Circuit &c, Bdd::BddMan<node> &bdd, std::vector<node> &f
       f[p] = bdd.Const0();
       g[p] = bdd.Const0();
       for(auto q : p->inputs) {
-	f[p] = bdd.Or(*f[p], *f[q]);
 	g[p] = bdd.Or(bdd.Or(bdd.And(bdd.Not(*f[p]), *g[q]),
 			     bdd.And(bdd.Not(*f[q]), *g[p])),
 		      bdd.And(*g[p], *g[q]));
+	f[p] = bdd.Or(*f[p], *f[q]);
       }
       break;
     case nodecircuit::NODE_NOR:
       f[p] = bdd.Const0();
       g[p] = bdd.Const0();
       for(auto q : p->inputs) {
-	f[p] = bdd.Or(*f[p], *f[q]);
 	g[p] = bdd.Or(bdd.Or(bdd.And(bdd.Not(*f[p]), *g[q]),
 			     bdd.And(bdd.Not(*f[q]), *g[p])),
 		      bdd.And(*g[p], *g[q]));
+	f[p] = bdd.Or(*f[p], *f[q]);
       }
       f[p] = bdd.Not(*f[p]);
       break;
