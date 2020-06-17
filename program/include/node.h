@@ -54,6 +54,8 @@ namespace nodecircuit {
     void ReadVerilog(std::string filename);
     void GetGates(NodeVector &gates);
     void PrintNodes();
+
+    void Simulate(std::vector<int> const &pat, std::vector<int> &fs, std::vector<int> &gs, std::map<Node *, int> *f = NULL,  std::map<Node *, int> *g = NULL); // simulate 32 patterns at once
     
   public:
     std::string name;

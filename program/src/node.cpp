@@ -174,4 +174,130 @@ namespace nodecircuit {
     }
     Unmark();
   }
+
+  void Circuit::Simulate(std::vector<int> const &pat, std::vector<int> &fs, std::vector<int> &gs, std::map<Node *, int> *fp,  std::map<Node *, int> *gp) {
+    if(pat.size() != inputs.size()) {
+      throw "number of inputs mismatch";
+    }
+    bool fgiven = 1;
+    bool ggiven = 1;
+    if(!fp) {
+      fgiven = 0;
+      fp = new std::map<Node *, int>;
+    }
+    if(!gp) {
+      ggiven = 0;
+      gp = new std::map<Node *, int>;
+    }
+    std::map<Node *, int> &f = *fp;
+    std::map<Node *, int> &g = *gp;
+    for(int i = 0; i < inputs.size(); i++) {
+      f[inputs[i]] = pat[i];
+      g[inputs[i]] = 0;
+    }
+    NodeVector gates;
+    GetGates(gates);
+    for(auto p : gates) {
+      switch(p->type) {
+      case nodecircuit::NODE_OTHER:
+	if(p->name == "1'b1") {
+	  f[p] = 0xffffffff;
+	  g[p] = 0;
+	}
+	else if(p->name == "1'b0") {
+	  f[p] = 0;
+	  g[p] = 0;
+	}
+	else if(p->name == "1'bx") {
+	  f[p] = 0;
+	  g[p] = 0xffffffff;
+	}
+	break;
+      case nodecircuit::NODE_BUF:
+	f[p] = f[p->inputs[0]];
+	g[p] = g[p->inputs[0]];
+	break;
+      case nodecircuit::NODE_NOT:
+	f[p] = ~f[p->inputs[0]];
+	g[p] = g[p->inputs[0]];
+	break;
+      case nodecircuit::NODE_AND:
+	f[p] = 0xffffffff;
+	g[p] = 0;
+	for(auto q : p->inputs) {
+	  g[p] = (f[p] & g[q]) | (f[q] & g[p]) | (g[p] & g[q]);
+	  f[p] = f[p] & f[q];
+	}
+	break;
+      case nodecircuit::NODE_NAND:
+	f[p] = 0xffffffff;
+	g[p] = 0;
+	for(auto q : p->inputs) {
+	  g[p] = (f[p] & g[q]) | (f[q] & g[p]) | (g[p] & g[q]);
+	  f[p] = f[p] & f[q];
+	}
+	f[p] = ~f[p];
+	break;
+      case nodecircuit::NODE_OR:
+	f[p] = 0;
+	g[p] = 0;
+	for(auto q : p->inputs) {
+	  g[p] = (~f[p] & g[q]) | (~f[q] & g[p]) | (g[p] & g[q]);
+	  f[p] = f[p] | f[q];
+	}
+	break;
+      case nodecircuit::NODE_NOR:
+	f[p] = 0;
+	g[p] = 0;
+	for(auto q : p->inputs) {
+	  g[p] = (~f[p] & g[q]) | (~f[q] & g[p]) | (g[p] & g[q]);
+	  f[p] = f[p] | f[q];
+	}
+	f[p] = ~f[p];
+	break;
+      case nodecircuit::NODE_XOR:
+	f[p] = 0;
+	g[p] = 0;
+	for(auto q : p->inputs) {
+	  f[p] = f[p] ^ f[q];
+	  g[p] = g[p] | g[q];
+	}
+	break;
+      case nodecircuit::NODE_XNOR:
+	f[p] = 0;
+	g[p] = 0;
+	for(auto q : p->inputs) {
+	  f[p] = f[p] ^ f[q];
+	  g[p] = g[p] | g[q];
+	}
+	f[p] = ~f[p];
+	break;
+      case nodecircuit::NODE_DC:
+	f[p] = f[p->inputs[0]];
+	g[p] = g[p->inputs[0]] | f[p->inputs[1]] | g[p->inputs[1]];
+	break;
+      case nodecircuit::NODE_MUX:
+	// Xthen=1, Yelse=0, C=2
+	f[p] = (f[p->inputs[2]] & f[p->inputs[1]]) | (~f[p->inputs[2]] & f[p->inputs[0]]);
+	g[p] = (f[p->inputs[2]] & g[p->inputs[1]]) | (~f[p->inputs[2]] & g[p->inputs[0]]) |
+	  (g[p->inputs[2]] & (g[p->inputs[1]] | g[p->inputs[0]] | (f[p->inputs[1]] ^ f[p->inputs[0]])));
+	break;
+      default:
+	throw "unkown gate type";
+	break;
+      }
+    }
+    fs.clear();
+    gs.clear();
+    for(auto p : outputs) {
+      fs.push_back(f[p]);
+      gs.push_back(g[p]);
+    }
+    if(!fgiven) {
+      delete fp;
+    }
+    if(!ggiven) {
+      delete gp;
+    }
+  }
 }
