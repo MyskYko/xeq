@@ -4,3 +4,6 @@
 [submodule "program/lib/glucose"]
 	path = program/lib/glucose
 	url = https://github.com/wadoon/glucose.git
+[submodule "program/lib/abc"]
+	path = program/lib/abc
+	url = https://github.com/berkeley-abc/abc.git
