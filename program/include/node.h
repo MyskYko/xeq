@@ -4,6 +4,9 @@
 #include <vector>
 #include <set>
 #include <map>
+#include <algorithm>
+
+#include <assert.h>
 
 namespace nodecircuit {
 
@@ -62,6 +65,7 @@ namespace nodecircuit {
     NodeVector inputs;    // primary inputs
     NodeVector outputs;   // primary outputs
     NodeVector all_nodes; // all nodes including inputs/outputs/targets
+    NodeVector dc;        // dc gates
     std::map<std::string, Node *> all_nodes_map; // mapping node names to nodes
 
     Node *CreateNode(std::string name) {
@@ -76,6 +80,18 @@ namespace nodecircuit {
       std::map<std::string, Node*>::iterator it = all_nodes_map.find(name);
       if (it != all_nodes_map.end())
         return it->second;
+      return NULL;
+    }
+    // find the index of a node in all_nodes
+    int GetNodeIndex(std::string name) {
+      Node *p = GetNode(name);
+      std::vector<Node*>::iterator it = find(all_nodes.begin(), all_nodes.end(), p);
+      bool node_exist = 0;
+      if (it != all_nodes.end()) {
+	node_exist = 1;
+	return distance(all_nodes.begin(), it);
+      }      
+      assert(node_exist);
       return NULL;
     }
     Node *GetOrCreateNode(std::string name) {
