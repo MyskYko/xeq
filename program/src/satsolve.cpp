@@ -647,7 +647,7 @@ void SatSolve(nodecircuit::Circuit &gf, nodecircuit::Circuit &rf, std::vector<bo
 
 	clause.push(Glucose::mkLit(2 * (gf.all_nodes.size() + rf.GetNodeIndex(p->name)) + 1, 1));
 	for (auto q: p->inputs) {
-	  clauseback.push(Glucose::mkLit(2 * (gf.all_nodes.size() + rf.GetNodeIndex(q->name), 1)));
+	  clauseback.push(Glucose::mkLit(2 * (gf.all_nodes.size() + rf.GetNodeIndex(q->name)), 1));
 	  clauseback.push(Glucose::mkLit(2 * (gf.all_nodes.size() + rf.GetNodeIndex(q->name)) + 1));
 	  clauseback.push(Glucose::mkLit(2 * (gf.all_nodes.size() + rf.GetNodeIndex(p->name)) + 1, 1));
 	  S.addClause(clauseback);
@@ -692,7 +692,7 @@ void SatSolve(nodecircuit::Circuit &gf, nodecircuit::Circuit &rf, std::vector<bo
 
 	clause.push(Glucose::mkLit(2 * (gf.all_nodes.size() + rf.GetNodeIndex(p->name)) + 1, 1));
 	for (auto q: p->inputs) {
-	  clauseback.push(Glucose::mkLit(2 * (gf.all_nodes.size() + rf.GetNodeIndex(q->name), 1)));
+	  clauseback.push(Glucose::mkLit(2 * (gf.all_nodes.size() + rf.GetNodeIndex(q->name)), 1));
 	  clauseback.push(Glucose::mkLit(2 * (gf.all_nodes.size() + rf.GetNodeIndex(q->name)) + 1));
 	  clauseback.push(Glucose::mkLit(2 * (gf.all_nodes.size() + rf.GetNodeIndex(p->name)) + 1, 1));
 	  S.addClause(clauseback);
