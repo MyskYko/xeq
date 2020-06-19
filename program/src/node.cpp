@@ -17,7 +17,7 @@ namespace nodecircuit {
     }
   }
 
-  void Circuit::ReadVerilog(string filename) {
+void Circuit::ReadVerilog(string filename) {
     ifstream f(filename);
     if(!f) return;
     string line;
@@ -88,51 +88,89 @@ namespace nodecircuit {
 	break;
       }
       else { // gates
-	pos = line.find("(");
-	line = line.substr(pos+1);
-	pos = line.find(")");
-	line = line.substr(0,pos);
-	stringstream ss(line);
-	string item;
-	getline(ss, item, ',');
-	Node *p = GetOrCreateNode(item);
-	while(getline(ss, item, ',')) {
-	  Node *q = GetOrCreateNode(item);
-	  p->inputs.push_back(q);
-	  q->outputs.push_back(p);
+	if(head == "_DC" || head == "_HMUX") {	  
+	  if (line.find(".") != string::npos) {
+	    pos = line.find(".");	    
+	    line = line.substr(pos+3);
+	    pos = line.find(")");
+	    string item = line.substr(0,pos);
+	    Node *p = GetOrCreateNode(item);	    
+	    while (line.find(".") != string::npos) {
+	      pos = line.find(".");
+	      line = line.substr(pos+1);
+	      line = " " + line;
+	      pos = line.find(")");
+	      string item = line.substr(0,pos);
+	      Node *q = GetOrCreateNode(item);
+	      p->inputs.push_back(q);
+	      q->outputs.push_back(p);
+	    }
+	    if (head == "_DC")
+	      p->type = NODE_DC;
+	    else
+	      p->type = NODE_MUX;
+	  }
+	  else {
+	    pos = line.find("(");
+	    line = line.substr(pos+1);
+	    pos = line.find(")");
+	    line = line.substr(0,pos);
+	    stringstream ss(line);
+	    string item;
+	    getline(ss, item, ',');
+	    Node *p = GetOrCreateNode(item);
+	    while(getline(ss, item, ',')) {
+	      Node *q = GetOrCreateNode(item);
+	      p->inputs.push_back(q);
+	      q->outputs.push_back(p);
+	    }
+	    if (head == "_DC")
+	      p->type = NODE_DC;
+	    else
+	      p->type = NODE_MUX;
+	  }	  
 	}
-	if(head == "and") {
-	  p->type = NODE_AND;
-	}
-	else if(head == "or") {
-	  p->type = NODE_OR;
-	}
-	else if(head == "nand") {
-	  p->type = NODE_NAND;
-	}
-	else if(head == "nor") {
-	  p->type = NODE_NOR;
-	}
-	else if(head == "not") {
-	  p->type = NODE_NOT;
-	}
-	else if(head == "buf") {
-	  p->type = NODE_BUF;
-	}
-	else if(head == "xor") {
-	  p->type = NODE_XOR;
-	}
-	else if(head == "xnor") {
-	  p->type = NODE_XNOR;
-	}
-	else if(head == "_DC") {
-	  p->type = NODE_DC;
-	}
-	else if(head == "_HMUX") {
-	  p->type = NODE_MUX;
-	}
-	else {
-	  throw "undefined type " + head;
+	else {	  
+	  pos = line.find("(");
+	  line = line.substr(pos+1);
+	  pos = line.find(")");
+	  line = line.substr(0,pos);
+	  stringstream ss(line);
+	  string item;
+	  getline(ss, item, ',');
+	  Node *p = GetOrCreateNode(item);
+	  while(getline(ss, item, ',')) {
+	    Node *q = GetOrCreateNode(item);
+	    p->inputs.push_back(q);
+	    q->outputs.push_back(p);
+	  }
+	  if(head == "and") {
+	    p->type = NODE_AND;
+	  }
+	  else if(head == "or") {
+	    p->type = NODE_OR;
+	  }
+	  else if(head == "nand") {
+	    p->type = NODE_NAND;
+	  }
+	  else if(head == "nor") {
+	    p->type = NODE_NOR;
+	  }
+	  else if(head == "not") {
+	    p->type = NODE_NOT;
+	  }
+	  else if(head == "buf") {
+	    p->type = NODE_BUF;
+	  }
+	  else if(head == "xor") {
+	    p->type = NODE_XOR;
+	  }
+	  else if(head == "xnor") {
+	    p->type = NODE_XNOR;
+	  }	  
+	  else {
+	    throw "undefined type " + head;
+	  }
 	}
       }
     }
