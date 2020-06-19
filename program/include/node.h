@@ -4,6 +4,7 @@
 #include <vector>
 #include <set>
 #include <map>
+#include <algorithm>
 
 namespace nodecircuit {
 
@@ -86,6 +87,18 @@ namespace nodecircuit {
       return p;
     }
 
+    // find the index of a node in all_nodes
+    int GetNodeIndex(std::string name) {
+      Node *p = GetNode(name);
+      std::vector<Node*>::iterator it = find(all_nodes.begin(), all_nodes.end(), p);
+      bool node_exist = 0;
+      if (it != all_nodes.end()) {
+	node_exist = 1;
+	return distance(all_nodes.begin(), it);
+      }      
+      abort();
+    }
+    
     void Unmark() {
       for(auto p : all_nodes) {
 	p->mark = false;
