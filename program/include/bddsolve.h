@@ -11,6 +11,14 @@ void Build(nodecircuit::NodeVector const &gates, Bdd::BddMan<node> &bdd, std::ma
   int count = gates.size();
   for(auto p : gates) {
     std::cout << "processing gate " << count-- << std::endl;
+    if(!nfanout[p]) {
+      continue;
+    }
+    if(f.count(p)) {
+      assert(g.count(p));
+      continue;
+    }
+    assert(!g.count(p));
     switch(p->type) {
     case nodecircuit::NODE_OTHER:
       if(p->name == "1'b1") {
@@ -192,6 +200,80 @@ void BddSolve(nodecircuit::Circuit &gf, nodecircuit::Circuit &rf, std::vector<bo
   Build(rgates, bdd, rnfanout, rmf, rmg);
   
   for(int i = 0; i < gf.outputs.size(); i++) {
+    auto gff = gmf[gf.outputs[i]];
+    auto gfg = gmg[gf.outputs[i]];
+    auto rff = rmf[rf.outputs[i]];
+    auto rfg = rmg[rf.outputs[i]];
+    auto eq = bdd.Or(gfg,
+		     bdd.And(bdd.Not(rfg),
+			     bdd.Xnor(gff, rff)));
+    if(!(eq == bdd.Const1())) {
+      result.resize(gf.inputs.size());
+      if(!get_cex(bdd, eq, result)) {
+	throw "No counter example";
+      }
+      break;
+    }
+  }
+}
+
+void BddSolve2(nodecircuit::Circuit &gf, nodecircuit::Circuit &rf, std::vector<bool> &result) {
+  Bdd::AtBddParam p;
+  p.nNodes = 8192;
+  p.nUnique = 2097152;
+  p.nCache = 16384;
+  p.nUniqueMinRate = 11;
+  p.nCallThold = 33382;
+  p.fRealloc = 1;
+  p.fGC = 1;
+  p.nGC = 744068;
+  p.nReo = 1000;
+  p.nMaxGrowth = 59;
+  Bdd::AtBddMan bdd(gf.inputs.size(), p);
+  bdd.Dvr();
+  using node = Bdd::AtBddNode;
+  
+  nodecircuit::NodeVector ggates;
+  gf.GetGates(ggates);
+  std::map<nodecircuit::Node *, int> gnfanout;
+  for(auto p : gf.inputs) {
+    gnfanout[p] = p->outputs.size();
+  }
+  for(auto p : ggates) {
+    gnfanout[p] = p->outputs.size();
+  }
+  for(auto p : gf.outputs) {
+    gnfanout[p]++;
+  }
+  nodecircuit::NodeVector rgates;
+  rf.GetGates(rgates);
+  std::map<nodecircuit::Node *, int> rnfanout;
+  for(auto p : rf.inputs) {
+    rnfanout[p] = p->outputs.size();
+  }
+  for(auto p : rgates) {
+    rnfanout[p] = p->outputs.size();
+  }
+  for(auto p : rf.outputs) {
+    rnfanout[p]++;
+  }
+
+  std::map<nodecircuit::Node *, node> gmf;
+  std::map<nodecircuit::Node *, node> gmg;
+  std::map<nodecircuit::Node *, node> rmf;
+  std::map<nodecircuit::Node *, node> rmg;
+  for(int i = 0; i < gf.inputs.size(); i++) {
+    gmf[gf.inputs[i]] = bdd.IthVar(i);
+    gmg[gf.inputs[i]] = bdd.Const0();
+    rmf[rf.inputs[i]] = bdd.IthVar(i);
+    rmg[rf.inputs[i]] = bdd.Const0();
+  }
+
+  for(int i = 0; i < gf.outputs.size(); i++) {
+    gf.GetGates(ggates, gf.outputs[i]);
+    Build(ggates, bdd, gnfanout, gmf, gmg);
+    rf.GetGates(rgates, rf.outputs[i]);
+    Build(rgates, bdd, rnfanout, rmf, rmg);
     auto gff = gmf[gf.outputs[i]];
     auto gfg = gmg[gf.outputs[i]];
     auto rff = rmf[rf.outputs[i]];

@@ -174,6 +174,13 @@ namespace nodecircuit {
     }
     Unmark();
   }
+  
+  void Circuit::GetGates(NodeVector &gates, Node *p) {
+    gates.clear();
+    Unmark();
+    GetGatesRec(p, gates);
+    Unmark();
+  }
 
   void Circuit::Simulate(std::vector<int> const &pat, std::vector<int> &fs, std::vector<int> &gs, std::map<Node *, int> *fp,  std::map<Node *, int> *gp) {
     if(pat.size() != inputs.size()) {
