@@ -968,6 +968,104 @@ void SatSolve2(nodecircuit::Circuit &gf, nodecircuit::Circuit &rf, std::vector<b
     }
 }
 
+void SatSolveNode(nodecircuit::Circuit &gf, nodecircuit::Node *gp, nodecircuit::Circuit &rf, nodecircuit::Node *rp, std::vector<bool> &result, bool fexact) {
+  Glucose::SimpSolver S;
+  Glucose::vec<Glucose::Lit> clause;
+
+  // g var
+  nodecircuit::NodeVector ggates;
+  std::map<nodecircuit::Node *, int> gm;
+  for (int i = 0; i < gf.inputs.size(); i++) {
+    gm[gf.inputs[i]] = i;
+    S.newVar();
+    S.newVar();
+  }
+  gf.GetGates(ggates, gp);
+  for (int i = 0; i < ggates.size(); i++) {
+    gm[ggates[i]] = i + gf.inputs.size();
+    S.newVar();
+    S.newVar();
+  }
+  int gall = gf.inputs.size() + ggates.size();
+  // r var
+  nodecircuit::NodeVector rgates;
+  std::map<nodecircuit::Node *, int> rm;
+  for (int i = 0; i < rf.inputs.size(); i++) {
+    rm[rf.inputs[i]] = i;
+    S.newVar();
+    S.newVar();
+  }
+  rf.GetGates(rgates, rp);
+  for (int i = 0; i < rgates.size(); i++) {
+    rm[rgates[i]] = i + rf.inputs.size();
+    S.newVar();
+    S.newVar();
+  }
+  
+  // correlate inputs of the two circuits
+  for (int i = 0; i < gf.inputs.size(); i++) {
+    S.addClause(Glucose::mkLit(2 * i, 1), Glucose::mkLit(2 * (gall + i)));
+    S.addClause(Glucose::mkLit(2 * i), Glucose::mkLit(2 * (gall + i), 1));
+
+    // for PIs, the values of the second bits are always 0
+    S.addClause(Glucose::mkLit(2 * i + 1, 1));
+    S.addClause(Glucose::mkLit(2 * (gall + i) + 1, 1));
+  }
+
+  Ckt2Cnf2(ggates, gm, S, 0);
+  Ckt2Cnf2(rgates, rm, S, gall);
+
+  // miter
+  Glucose::Lit gl = Glucose::mkLit(2 * gm[gp]);
+  Glucose::Lit glx = Glucose::mkLit(2 * gm[gp] + 1);
+  Glucose::Lit rl = Glucose::mkLit(2 * (gall + rm[rp]));
+  Glucose::Lit rlx = Glucose::mkLit(2 * (gall + rm[rp]) + 1);
+  if(fexact) {
+    Glucose::Lit both_x = Glucose::mkLit(S.newVar());
+    And2(S, glx, rlx, both_x);
+    
+    Glucose::Lit both_nox = Glucose::mkLit(S.newVar());
+    And2(S, ~glx, ~rlx, both_nox);
+    Glucose::Lit eqf = Glucose::mkLit(S.newVar());
+    Xor2(S, gl, rl, ~eqf);
+    Glucose::Lit eq_nox = Glucose::mkLit(S.newVar());
+    And2(S, both_nox, eqf, eq_nox);
+    
+    Glucose::Lit eq = Glucose::mkLit(S.newVar());
+    Or2(S, both_x, eq_nox, eq);
+    S.addClause(~eq);
+  }
+  else {
+    Glucose::Lit eqf = Glucose::mkLit(S.newVar());
+    Xor2(S, gl, rl, ~eqf);
+    Glucose::Lit eq_nox = Glucose::mkLit(S.newVar());
+    And2(S, ~rlx, eqf, eq_nox);
+    
+    Glucose::Lit eq = Glucose::mkLit(S.newVar());
+    Or2(S, glx, eq_nox, eq);
+    S.addClause(~eq);
+  }
+
+  // solve the sat problem
+  bool r = S.solve();
+  if (r)
+    for (int i = 0; i < gf.inputs.size(); i++) { 
+      if(S.model[2 * i] == l_True) 
+	result.push_back(1);
+      else
+	result.push_back(0);      
+    }
+}
+
+void SatSolve3(nodecircuit::Circuit &gf, nodecircuit::Circuit &rf, std::vector<bool> &result) {
+  for(int i = 0; i < gf.outputs.size(); i++) {
+    SatSolveNode(gf, gf.outputs[i], rf, rf.outputs[i], result, 0);
+    if(!result.empty()) {
+      return;
+    }
+  }
+}
+
 void SatTest() {
   Glucose::SimpSolver S;
   Glucose::vec<Glucose::Lit> clause;
