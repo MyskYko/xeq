@@ -1,43 +1,43 @@
 cases/case1:
 result: EQ.
-SAT run time: 25.9032 sec.
+SAT run time: 588.933 sec.
 
 cases/case2:
-result: EQ.
-SAT run time: 25.825 sec.
+result: NEQ.
+SAT run time: 0.131529 sec.
 
 cases/case3:
 result: EQ.
-SAT run time: 1358.62 sec.
+SAT run time: time out(more than one day).
 
 cases/case4:
-result: EQ.
-SAT run time: 1315.76 sec.
+result: NEQ.
+SAT run time: 54.9865 sec.
 
 cases/case5:
-result: NEQ.
-SAT run time: 0.410145 sec.
+result: EQ.
+SAT run time: 106.042 sec.
 
 cases/case6:
-result: NEQ.
-SAT run time: 0.414429 sec.
+result: EQ.
+SAT run time: 106.547 sec.
 
 cases/case7:
 result: NEQ.
-SAT run time: 0.811547 sec.
+SAT run time: 1.06974 sec.
 
 cases/case8:
 result: EQ.
-SAT run time: 22078 sec.
+SAT run time: 30925.4 sec.
 
 cases/case9:
-result: EQ.
-SAT run time: 1719.74 sec.
+result: NEQ.
+SAT run time: 3.70049 sec.
 
 cases2/case1:
 result: NEQ.
-SAT run time: 0.051125 sec.
+SAT run time: 0.047327 sec.
 
 cases2/case2:
 result: NEQ.
-SAT run time: 0.050079 sec.
+SAT run time: 0.056391 sec.
