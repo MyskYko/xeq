@@ -156,6 +156,46 @@ namespace nodecircuit {
     }
   }
 
+  void WriteBinaryBLIFAND2(std::ostream& Outfile, std::string in1, std::string in2, std::string out, std::string XValueMark){
+	  Outfile <<".names " <<in1 <<" " <<in1 <<XValueMark <<" "
+	          <<in2 <<" " <<in2 <<XValueMark <<" "
+	          <<out <<std::endl;
+	  Outfile <<"11-- 1\n";
+	  Outfile <<".names " <<in1 <<" " <<in1 <<XValueMark <<" "
+	          <<in2 <<" " <<in2 <<XValueMark <<" "
+	          <<out <<XValueMark <<std::endl;
+	  Outfile <<"--11 1\n" <<"1-01 1\n" <<"-110 1\n" ;
+  }
+
+  void WriteBinaryBLIFOR2(std::ostream& Outfile, std::string in1, std::string in2, std::string out, std::string XValueMark){
+	  Outfile <<".names " <<in1 <<" " <<in1 <<XValueMark <<" "
+	          <<in2 <<" " <<in2 <<XValueMark <<" "
+	          <<out <<std::endl;
+	  Outfile <<"1--- 1\n" <<"-1-- 1\n";
+	  Outfile <<".names " <<in1 <<" " <<in1 <<XValueMark <<" "
+	          <<in2 <<" " <<in2 <<XValueMark <<" "
+	          <<out <<XValueMark <<std::endl;
+	  Outfile <<"--11 1\n" <<"0-01 1\n" <<"-010 1\n" ;
+  }
+
+  void WriteBinaryBLIFXOR2(std::ostream& Outfile, std::string in1, std::string in2, std::string out, std::string XValueMark){
+	  Outfile <<".names " <<in1 <<" " <<in1 <<XValueMark <<" "
+	          <<in2 <<" " <<in2 <<XValueMark <<" "
+	          <<out <<std::endl;
+	  Outfile <<"10-- 1\n" <<"01-- 1\n";
+	  Outfile <<".names " <<in1 <<" " <<in1 <<XValueMark <<" "
+	          <<in2 <<" " <<in2 <<XValueMark <<" "
+	          <<out <<XValueMark <<std::endl;
+	  Outfile <<"---1 1\n" <<"--1- 1\n" ;
+  }
+
+  void WriteBinaryBLIFNOT(std::ostream& Outfile, std::string in1, std::string out, std::string XValueMark){
+	  Outfile <<".names " <<in1 <<" " <<out <<std::endl;
+	  Outfile <<"0 1\n";
+	  Outfile <<".names " <<in1 <<XValueMark <<" " <<out <<XValueMark <<std::endl;
+	  Outfile <<"1 1\n";
+  }
+
   void WriteBinaryBLIFGate(ostream& Outfile, Node* GateNode, std::string XValueMark){
 	  if(GateNode->is_input||GateNode->is_output) return;
 	  switch (GateNode->type) {
@@ -180,41 +220,48 @@ namespace nodecircuit {
 		      Outfile <<"1 1\n";
 		      break;
           case NODE_NOT:
-	          Outfile <<".names " <<GateNode->inputs[0]->name <<" " <<GateNode->outputs[0]->name <<std::endl;
-			  Outfile <<"0 1\n";
-			  Outfile <<".names " <<GateNode->inputs[0]->name <<XValueMark <<" " <<GateNode->outputs[0]->name
-			          <<XValueMark <<std::endl;
-			  Outfile <<"1 1\n";
+	          WriteBinaryBLIFNOT(Outfile, GateNode->inputs[0]->name, GateNode->outputs[0]->name, XValueMark);
 			  break;
-	  	  case NODE_AND://ASSUMING AND2
-		      Outfile <<".names " <<GateNode->inputs[0]->name <<" " <<GateNode->inputs[0]->name <<XValueMark <<" "
-		      <<GateNode->inputs[1]->name <<" " <<GateNode->inputs[1]->name <<XValueMark <<" "
-		      <<GateNode->outputs[0]->name <<std::endl;
-			  Outfile <<"11-- 1\n";
-			  Outfile <<".names " <<GateNode->inputs[0]->name <<" " <<GateNode->inputs[0]->name <<XValueMark <<" "
-			          <<GateNode->inputs[1]->name <<" " <<GateNode->inputs[1]->name <<XValueMark <<" "
-			          <<GateNode->outputs[0]->name <<XValueMark <<std::endl;
-			  Outfile <<"--11 1\n" <<"1-01 1\n" <<"-110 1\n" ;
+	  	  case NODE_AND:
+		      if (GateNode->inputs.size() == 2)
+		      	WriteBinaryBLIFAND2(Outfile, GateNode->inputs[0]->name, GateNode->inputs[1]->name, GateNode->outputs[0]->name, XValueMark);
+		      else {
+		      	WriteBinaryBLIFAND2(Outfile, GateNode->inputs[0]->name, GateNode->inputs[1]->name, GateNode->outputs[0]->name + "_0", XValueMark);
+			      for (int i = 2; i < GateNode->inputs.size() - 1 ; ++i) {
+				      WriteBinaryBLIFAND2(Outfile, GateNode->outputs[0]->name + "_" + std::to_string(i-2), GateNode->inputs[i]->name, GateNode->outputs[0]->name + "_" + std::to_string(i-1), XValueMark);
+			      }
+			      WriteBinaryBLIFAND2(Outfile, GateNode->outputs[0]->name + "_" + std::to_string(GateNode->inputs.size()-2), GateNode->inputs.back()->name, GateNode->outputs[0]->name, XValueMark);
+		      }
 			  break;
-		  case NODE_OR://ASSUMING OR2
-			  Outfile <<".names " <<GateNode->inputs[0]->name <<" " <<GateNode->inputs[0]->name <<XValueMark <<" "
-			          <<GateNode->inputs[1]->name <<" " <<GateNode->inputs[1]->name <<XValueMark <<" "
-			          <<GateNode->outputs[0]->name <<std::endl;
-			  Outfile <<"1--- 1\n" <<"-1-- 1\n";
-			  Outfile <<".names " <<GateNode->inputs[0]->name <<" " <<GateNode->inputs[0]->name <<XValueMark <<" "
-			          <<GateNode->inputs[1]->name <<" " <<GateNode->inputs[1]->name <<XValueMark <<" "
-			          <<GateNode->outputs[0]->name <<XValueMark <<std::endl;
-			  Outfile <<"--11 1\n" <<"0-01 1\n" <<"-010 1\n" ;
+		  case NODE_OR:
+			  if (GateNode->inputs.size() == 2)
+				  WriteBinaryBLIFOR2(Outfile, GateNode->inputs[0]->name, GateNode->inputs[1]->name, GateNode->outputs[0]->name, XValueMark);
+			  else {
+				  WriteBinaryBLIFOR2(Outfile, GateNode->inputs[0]->name, GateNode->inputs[1]->name, GateNode->outputs[0]->name + "_0", XValueMark);
+				  for (int i = 2; i < GateNode->inputs.size() - 1 ; ++i) {
+					  WriteBinaryBLIFOR2(Outfile, GateNode->outputs[0]->name + "_" + std::to_string(i-2), GateNode->inputs[i]->name, GateNode->outputs[0]->name + "_" + std::to_string(i-1), XValueMark);
+				  }
+				  WriteBinaryBLIFOR2(Outfile, GateNode->outputs[0]->name + "_" + std::to_string(GateNode->inputs.size()-2), GateNode->inputs.back()->name, GateNode->outputs[0]->name, XValueMark);
+			  }
 			  break;
-		  case NODE_XOR://ASSUMING XOR2
-			  Outfile <<".names " <<GateNode->inputs[0]->name <<" " <<GateNode->inputs[0]->name <<XValueMark <<" "
-			          <<GateNode->inputs[1]->name <<" " <<GateNode->inputs[1]->name <<XValueMark <<" "
-			          <<GateNode->outputs[0]->name <<std::endl;
-			  Outfile <<"10-- 1\n" <<"01-- 1\n";
-			  Outfile <<".names " <<GateNode->inputs[0]->name <<" " <<GateNode->inputs[0]->name <<XValueMark <<" "
-			          <<GateNode->inputs[1]->name <<" " <<GateNode->inputs[1]->name <<XValueMark <<" "
-			          <<GateNode->outputs[0]->name <<XValueMark <<std::endl;
-			  Outfile <<"---1 1\n" <<"--1- 1\n" ;
+		  case NODE_XOR:
+			  if (GateNode->inputs.size() == 2)
+				  WriteBinaryBLIFXOR2(Outfile, GateNode->inputs[0]->name, GateNode->inputs[1]->name, GateNode->outputs[0]->name, XValueMark);
+			  else {
+				  WriteBinaryBLIFXOR2(Outfile, GateNode->inputs[0]->name, GateNode->inputs[1]->name, GateNode->outputs[0]->name + "_0", XValueMark);
+				  for (int i = 2; i < GateNode->inputs.size(); ++i) {
+					  WriteBinaryBLIFXOR2(Outfile, GateNode->inputs[i-1]->name, GateNode->inputs[i]->name, GateNode->outputs[0]->name + "_" + std::to_string(i-1), XValueMark);
+				  }
+				  if (GateNode->inputs.size() == 3)
+					  WriteBinaryBLIFOR2(Outfile, GateNode->outputs[0]->name + "_0", GateNode->outputs[0]->name + "_1", GateNode->outputs[0]->name, XValueMark);
+				  else {
+					  WriteBinaryBLIFOR2(Outfile, GateNode->outputs[0]->name + "_0", GateNode->outputs[0]->name + "_1", GateNode->outputs[0]->name + "_OR0", XValueMark);
+					  for (int i = 2; i < GateNode->inputs.size() - 2 ; ++i) {
+						  WriteBinaryBLIFOR2(Outfile, GateNode->outputs[0]->name + "_OR" + std::to_string(i-2), GateNode->outputs[0]->name + "_" + std::to_string(i), GateNode->outputs[0]->name + "_OR" + std::to_string(i-1), XValueMark);
+					  }
+					  WriteBinaryBLIFOR2(Outfile, GateNode->outputs[0]->name + "_OR" + std::to_string(GateNode->inputs.size()-3), GateNode->outputs[0]->name + "_OR" + std::to_string(GateNode->inputs.size()-1), GateNode->outputs[0]->name, XValueMark);
+				  }
+			  }
 			  break;
 		  case NODE_MUX://ASSUMING INPUTS[0~2] S in0 in1
 			  Outfile <<".names " <<GateNode->inputs[0]->name <<" " <<GateNode->inputs[0]->name <<XValueMark <<" "
@@ -239,34 +286,71 @@ namespace nodecircuit {
 			  Outfile <<"---1 1\n" <<"--1- 1\n"  <<"1--- 1\n";
 			  break;
 	  	case NODE_NAND:
-		    Outfile <<".names " <<GateNode->inputs[0]->name <<" " <<GateNode->inputs[0]->name <<XValueMark <<" "
-		            <<GateNode->inputs[1]->name <<" " <<GateNode->inputs[1]->name <<XValueMark <<" "
-		            <<GateNode->outputs[0]->name <<std::endl;
-			  Outfile <<"0--- 1\n" "-0-- 1\n";
-			  Outfile <<".names " <<GateNode->inputs[0]->name <<" " <<GateNode->inputs[0]->name <<XValueMark <<" "
-			          <<GateNode->inputs[1]->name <<" " <<GateNode->inputs[1]->name <<XValueMark <<" "
-			          <<GateNode->outputs[0]->name <<XValueMark <<std::endl;
-			  Outfile <<"--11 1\n" <<"1-01 1\n" <<"-110 1\n" ;
+	  		if (GateNode->inputs.size() == 2){
+			    Outfile <<".names " <<GateNode->inputs[0]->name <<" " <<GateNode->inputs[0]->name <<XValueMark <<" "
+			            <<GateNode->inputs[1]->name <<" " <<GateNode->inputs[1]->name <<XValueMark <<" "
+			            <<GateNode->outputs[0]->name <<std::endl;
+			    Outfile <<"0--- 1\n" "-0-- 1\n";
+			    Outfile <<".names " <<GateNode->inputs[0]->name <<" " <<GateNode->inputs[0]->name <<XValueMark <<" "
+			            <<GateNode->inputs[1]->name <<" " <<GateNode->inputs[1]->name <<XValueMark <<" "
+			            <<GateNode->outputs[0]->name <<XValueMark <<std::endl;
+			    Outfile <<"--11 1\n" <<"1-01 1\n" <<"-110 1\n" ;
+	  		} else{
+			    WriteBinaryBLIFAND2(Outfile, GateNode->inputs[0]->name, GateNode->inputs[1]->name, GateNode->outputs[0]->name + "_0", XValueMark);
+			    for (int i = 2; i < GateNode->inputs.size() - 1 ; ++i) {
+				    WriteBinaryBLIFAND2(Outfile, GateNode->outputs[0]->name + "_" + std::to_string(i-2), GateNode->inputs[i]->name, GateNode->outputs[0]->name + "_" + std::to_string(i-1), XValueMark);
+			    }
+			    WriteBinaryBLIFAND2(Outfile, GateNode->outputs[0]->name + "_" + std::to_string(GateNode->inputs.size()-2), GateNode->inputs.back()->name, GateNode->outputs[0]->name + "_AND", XValueMark);
+			    WriteBinaryBLIFNOT(Outfile, GateNode->outputs[0]->name + "_AND", GateNode->outputs[0]->name, XValueMark);
+	  		}
 			  break;
 	  	case NODE_NOR:
-		    Outfile <<".names " <<GateNode->inputs[0]->name <<" " <<GateNode->inputs[0]->name <<XValueMark <<" "
-		            <<GateNode->inputs[1]->name <<" " <<GateNode->inputs[1]->name <<XValueMark <<" "
-		            <<GateNode->outputs[0]->name <<std::endl;
-			  Outfile <<"00-- 1\n" ;
-			  Outfile <<".names " <<GateNode->inputs[0]->name <<" " <<GateNode->inputs[0]->name <<XValueMark <<" "
-			          <<GateNode->inputs[1]->name <<" " <<GateNode->inputs[1]->name <<XValueMark <<" "
-			          <<GateNode->outputs[0]->name <<XValueMark <<std::endl;
-			  Outfile <<"--11 1\n" <<"0-01 1\n" <<"-010 1\n" ;
+	  		if (GateNode->inputs.size() == 2){
+			    Outfile <<".names " <<GateNode->inputs[0]->name <<" " <<GateNode->inputs[0]->name <<XValueMark <<" "
+			            <<GateNode->inputs[1]->name <<" " <<GateNode->inputs[1]->name <<XValueMark <<" "
+			            <<GateNode->outputs[0]->name <<std::endl;
+			    Outfile <<"00-- 1\n" ;
+			    Outfile <<".names " <<GateNode->inputs[0]->name <<" " <<GateNode->inputs[0]->name <<XValueMark <<" "
+			            <<GateNode->inputs[1]->name <<" " <<GateNode->inputs[1]->name <<XValueMark <<" "
+			            <<GateNode->outputs[0]->name <<XValueMark <<std::endl;
+			    Outfile <<"--11 1\n" <<"0-01 1\n" <<"-010 1\n" ;
+	  		}
+	  		else{
+			    WriteBinaryBLIFOR2(Outfile, GateNode->inputs[0]->name, GateNode->inputs[1]->name, GateNode->outputs[0]->name + "_0", XValueMark);
+			    for (int i = 2; i < GateNode->inputs.size() - 1 ; ++i) {
+				    WriteBinaryBLIFOR2(Outfile, GateNode->outputs[0]->name + "_" + std::to_string(i-2), GateNode->inputs[i]->name, GateNode->outputs[0]->name + "_" + std::to_string(i-1), XValueMark);
+			    }
+			    WriteBinaryBLIFOR2(Outfile, GateNode->outputs[0]->name + "_" + std::to_string(GateNode->inputs.size()-2), GateNode->inputs.back()->name, GateNode->outputs[0]->name + "_OR", XValueMark);
+			    WriteBinaryBLIFNOT(Outfile, GateNode->outputs[0]->name + "_OR", GateNode->outputs[0]->name, XValueMark);
+	  		}
 			  break;
 	  	case NODE_XNOR:
-		    Outfile <<".names " <<GateNode->inputs[0]->name <<" " <<GateNode->inputs[0]->name <<XValueMark <<" "
-		            <<GateNode->inputs[1]->name <<" " <<GateNode->inputs[1]->name <<XValueMark <<" "
-		            <<GateNode->outputs[0]->name <<std::endl;
-			  Outfile <<"00-- 1\n" <<"11-- 1";
-			  Outfile <<".names " <<GateNode->inputs[0]->name <<" " <<GateNode->inputs[0]->name <<XValueMark <<" "
-			          <<GateNode->inputs[1]->name <<" " <<GateNode->inputs[1]->name <<XValueMark <<" "
-			          <<GateNode->outputs[0]->name <<XValueMark <<std::endl;
-			  Outfile <<"---1 1\n" <<"--1- 1\n" ;
+		    if (GateNode->inputs.size() == 2){
+			    Outfile <<".names " <<GateNode->inputs[0]->name <<" " <<GateNode->inputs[0]->name <<XValueMark <<" "
+			            <<GateNode->inputs[1]->name <<" " <<GateNode->inputs[1]->name <<XValueMark <<" "
+			            <<GateNode->outputs[0]->name <<std::endl;
+			    Outfile <<"00-- 1\n" <<"11-- 1";
+			    Outfile <<".names " <<GateNode->inputs[0]->name <<" " <<GateNode->inputs[0]->name <<XValueMark <<" "
+			            <<GateNode->inputs[1]->name <<" " <<GateNode->inputs[1]->name <<XValueMark <<" "
+			            <<GateNode->outputs[0]->name <<XValueMark <<std::endl;
+			    Outfile <<"---1 1\n" <<"--1- 1\n" ;
+		    } else{
+			    WriteBinaryBLIFXOR2(Outfile, GateNode->inputs[0]->name, GateNode->inputs[1]->name, GateNode->outputs[0]->name + "_0", XValueMark);
+			    for (int i = 2; i < GateNode->inputs.size(); ++i) {
+				    WriteBinaryBLIFXOR2(Outfile, GateNode->inputs[i-1]->name, GateNode->inputs[i]->name, GateNode->outputs[0]->name + "_" + std::to_string(i-1), XValueMark);
+			    }
+			    if (GateNode->inputs.size() == 3)
+				    WriteBinaryBLIFOR2(Outfile, GateNode->outputs[0]->name + "_0", GateNode->outputs[0]->name + "_1", GateNode->outputs[0]->name + "XOR", XValueMark);
+			    else {
+				    WriteBinaryBLIFOR2(Outfile, GateNode->outputs[0]->name + "_0", GateNode->outputs[0]->name + "_1", GateNode->outputs[0]->name + "_OR0", XValueMark);
+				    for (int i = 2; i < GateNode->inputs.size() - 2 ; ++i) {
+					    WriteBinaryBLIFOR2(Outfile, GateNode->outputs[0]->name + "_OR" + std::to_string(i-2), GateNode->outputs[0]->name + "_" + std::to_string(i), GateNode->outputs[0]->name + "_OR" + std::to_string(i-1), XValueMark);
+				    }
+				    WriteBinaryBLIFOR2(Outfile, GateNode->outputs[0]->name + "_OR" + std::to_string(GateNode->inputs.size()-3), GateNode->outputs[0]->name + "_OR" + std::to_string(GateNode->inputs.size()-1), GateNode->outputs[0]->name +"XOR", XValueMark);
+			    }
+			    WriteBinaryBLIFNOT(Outfile, GateNode->outputs[0]->name + "XOR", GateNode->outputs[0]->name, XValueMark);
+		    }
+
 			  break;
 		default:
 			  return;
