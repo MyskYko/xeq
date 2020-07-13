@@ -912,18 +912,26 @@ void SatSolve3(nodecircuit::Circuit &gf, nodecircuit::Circuit &rf, std::vector<b
 void SatSolveAll(nodecircuit::Circuit &f, std::vector<bool> &result) {
   Glucose::SimpSolver S;
   Glucose::vec<Glucose::Lit> clause;
-  for(int i = 0; i < f.all_nodes.size(); i++) { 
-    S.newVar();
+  std::map<nodecircuit::Node *, int> m;
+  // inputs
+  for (int i = 0; i < f.inputs.size(); i++) {
+    m[f.inputs[i]] = S.newVar();
+    S.addClause(Glucose::mkLit(S.newVar(), 1));
+  }
+  // gates
+  nodecircuit::NodeVector gates;
+  f.GetGates(gates);
+  for (int i = 0; i < gates.size(); i++) {
+    m[gates[i]] = S.newVar();
     S.newVar();
   }
-  for(auto p: f.inputs) {
-    S.addClause(Glucose::mkLit(2 * f.GetNodeIndex(p->name) + 1, 1));
-  }
-  Ckt2Cnf(f, S, 0);
-  for(int i = 0; i < f.outputs.size(); i++) {
-    clause.push(Glucose::mkLit(2 * f.GetNodeIndex(f.outputs[i]->name)));
+  Ckt2Cnf2(gates, m, S);
+  // outputs
+  for(auto p : f.outputs) {
+    clause.push(Glucose::mkLit(m[p]));
   }
   S.addClause(clause);
+  // solve
   bool r = S.solve();
   if(r) {
     for (int i = 0; i < f.inputs.size(); i++) { 
