@@ -166,7 +166,7 @@ namespace nodecircuit {
     p->mark = true;
   }
   
-  void Circuit::GetGates(NodeVector &gates) {
+  void Circuit::GetGates(NodeVector &gates) const {
     gates.clear();
     Unmark();
     for(auto p : outputs) {
@@ -175,7 +175,7 @@ namespace nodecircuit {
     Unmark();
   }
   
-  void Circuit::GetGates(NodeVector &gates, Node *p) {
+  void Circuit::GetGates(NodeVector &gates, Node *p) const {
     gates.clear();
     Unmark();
     GetGatesRec(p, gates);
@@ -305,6 +305,97 @@ namespace nodecircuit {
     }
     if(!ggiven) {
       delete gp;
+    }
+  }
+
+  void Miter(Circuit const &g, Circuit const &r, Circuit &miter) {
+    std::map<Node *, Node *> m;
+    // inputs
+    for(int i = 0; i < g.inputs.size(); i++) {
+      Node *q = miter.CreateNode(g.inputs[i]->name);
+      q->is_input = true;
+      miter.inputs.push_back(q);
+      m[g.inputs[i]] = q;
+      if(g.inputs[i]->name != r.inputs[i]->name) {
+	throw "input name mismatch";	
+      }
+      m[r.inputs[i]] = q;
+    }
+    // gates in g
+    NodeVector gates;
+    g.GetGates(gates);
+    for(Node *p : gates) {
+      Node *q;
+      if(p->type == NODE_OTHER) {
+	q = miter.GetOrCreateNode(p->name);
+      }
+      else {
+	q = miter.CreateNode("xeq_g_" + p->name);
+	q->type = p->type;
+	for(Node *i : p->inputs) {
+	  q->inputs.push_back(m[i]);
+	}
+	for(Node *o : p->outputs) {
+	  q->outputs.push_back(m[o]);
+	}
+      }
+      m[p] = q;
+    }
+    gates.clear();
+    // gates in r
+    r.GetGates(gates);
+    for(Node *p : gates) {
+      Node *q;
+      if(p->type == NODE_OTHER) {
+	q = miter.GetOrCreateNode(p->name);
+      }
+      else {
+	q = miter.CreateNode("xeq_r_" + p->name);
+	q->type = p->type;
+	for(Node *i : p->inputs) {
+	  q->inputs.push_back(m[i]);
+	}
+	for(Node *o : p->outputs) {
+	  q->outputs.push_back(m[o]);
+	}
+      }
+      m[p] = q;
+    }
+    // outputs
+    for(int i = 0; i < g.outputs.size(); i++) {
+      std::string name = g.outputs[i]->name;
+      Node *pxor = miter.CreateNode("xeq_xor_" + name);
+      pxor->type = NODE_XOR;
+      pxor->inputs.push_back(m[g.outputs[i]]);
+      m[g.outputs[i]]->outputs.push_back(pxor);
+      pxor->inputs.push_back(m[r.outputs[i]]);
+      m[r.outputs[i]]->outputs.push_back(pxor);
+      Node *risx = miter.CreateNode("xeq_isx_r_" + name);
+      risx->type = NODE_ISX;
+      risx->inputs.push_back(m[r.outputs[i]]);
+      m[r.outputs[i]]->outputs.push_back(risx);
+      Node *por = miter.CreateNode("xeq_or_" + name);
+      por->type = NODE_OR;
+      por->inputs.push_back(pxor);
+      pxor->outputs.push_back(por);
+      por->inputs.push_back(risx);
+      risx->outputs.push_back(por);
+      Node *gisx = miter.CreateNode("xeq_isx_g_" + name);
+      gisx->type = NODE_ISX;
+      gisx->inputs.push_back(m[g.outputs[i]]);
+      m[g.outputs[i]]->outputs.push_back(gisx);
+      Node *gisnx = miter.CreateNode("xeq_isnx_g_" + name);
+      gisnx->type = NODE_NOT;
+      gisnx->inputs.push_back(gisx);
+      gisx->outputs.push_back(gisnx);
+      Node *neq = miter.CreateNode("xeq_neq_" + name);
+      neq->type = NODE_AND;
+      neq->inputs.push_back(por);
+      por->outputs.push_back(neq);
+      neq->inputs.push_back(gisnx);
+      gisnx->outputs.push_back(neq);
+      neq->is_output = true;
+      miter.outputs.push_back(neq);
     }
   }
 }

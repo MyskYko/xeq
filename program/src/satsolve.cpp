@@ -364,6 +364,15 @@ void Ckt2Cnf(nodecircuit::Circuit &f, Glucose::SimpSolver &S, int bias) {
       S.addClause(clause);
       clause.clear();
       break;
+    case nodecircuit::NODE_ISX:
+      assert(p->inputs.size() == 1);
+      S.addClause(Glucose::mkLit(2 * (bias + f.GetNodeIndex((p->inputs[0])->name)) + 1, 1), Glucose::mkLit(2 * (bias + f.GetNodeIndex(p->name))));	
+      S.addClause(Glucose::mkLit(2 * (bias + f.GetNodeIndex((p->inputs[0])->name)) + 1), Glucose::mkLit(2 * (bias + f.GetNodeIndex(p->name)), 1));
+      S.addClause(Glucose::mkLit(2 * (bias + f.GetNodeIndex(p->name)) + 1, 1));
+      break;
+    default:
+      assert(0);
+      break;
     }
   }            
 }
@@ -844,6 +853,15 @@ void Ckt2Cnf2(nodecircuit::NodeVector const &gates, std::map<nodecircuit::Node *
       S.addClause(clause);
       clause.clear();
       break;
+    case nodecircuit::NODE_ISX:
+      assert(p->inputs.size() == 1);
+      S.addClause(Glucose::mkLit(2 * (bias + m.at(p->inputs[0])) + 1, 1), Glucose::mkLit(2 * (bias + m.at(p))));	
+      S.addClause(Glucose::mkLit(2 * (bias + m.at(p->inputs[0])) + 1), Glucose::mkLit(2 * (bias + m.at(p)), 1));
+      S.addClause(Glucose::mkLit(2 * (bias + m.at(p)) + 1, 1));
+      break;
+    default:
+      assert(0);
+      break;
     }
   }            
 }
@@ -1065,6 +1083,35 @@ void SatSolve3(nodecircuit::Circuit &gf, nodecircuit::Circuit &rf, std::vector<b
     }
   }
 }
+
+void SatSolveAll(nodecircuit::Circuit &f, std::vector<bool> &result) {
+  Glucose::SimpSolver S;
+  Glucose::vec<Glucose::Lit> clause;
+  for(int i = 0; i < f.all_nodes.size(); i++) { 
+    S.newVar();
+    S.newVar();
+  }
+  for(auto p: f.inputs) {
+    S.addClause(Glucose::mkLit(2 * f.GetNodeIndex(p->name) + 1, 1));
+  }
+  Ckt2Cnf(f, S, 0);
+  for(int i = 0; i < f.outputs.size(); i++) {
+    clause.push(Glucose::mkLit(2 * f.GetNodeIndex(f.outputs[i]->name)));
+  }
+  S.addClause(clause);
+  bool r = S.solve();
+  if(r) {
+    for (int i = 0; i < f.inputs.size(); i++) { 
+      if(S.model[2 * i] == l_True) {
+	result.push_back(1);
+      }
+      else {
+	result.push_back(0);
+      }
+    }
+  }
+}
+
 
 void SatTest() {
   Glucose::SimpSolver S;

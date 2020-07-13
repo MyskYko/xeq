@@ -19,7 +19,8 @@ namespace nodecircuit {
     NODE_XOR,
     NODE_XNOR,
     NODE_DC,
-    NODE_MUX
+    NODE_MUX,
+    NODE_ISX
   };
 
   class Node;
@@ -53,8 +54,8 @@ namespace nodecircuit {
     virtual ~Circuit() {};
 
     void ReadVerilog(std::string filename);
-    void GetGates(NodeVector &gates);
-    void GetGates(NodeVector &gates, Node *p); // gates in fanin cone
+    void GetGates(NodeVector &gates) const;
+    void GetGates(NodeVector &gates, Node *p) const; // gates in fanin cone
     void PrintNodes();
 
     void Simulate(std::vector<int> const &pat, std::vector<int> &fs, std::vector<int> &gs, std::map<Node *, int> *f = NULL,  std::map<Node *, int> *g = NULL); // simulate 32 patterns at once
@@ -100,11 +101,13 @@ namespace nodecircuit {
       abort();
     }
     
-    void Unmark() {
+    void Unmark() const {
       for(auto p : all_nodes) {
 	p->mark = false;
       }
     }
   };
 
+  void Miter(Circuit const &g, Circuit const &r, Circuit &miter);
+  
 } // namespace nodecircuit
