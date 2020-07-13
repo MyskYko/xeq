@@ -25,20 +25,20 @@ inline void foreach_comb(int n, int k, std::function<void(int *)> f) {
   recursive_comb(indices, n - 1, k, f);
 }
 
-void XConstraints(nodecircuit::Circuit &f, Glucose::SimpSolver &S, int bias, nodecircuit::Node *p) {
+void XConstraints(std::map<nodecircuit::Node *, int> const &m, Glucose::SimpSolver &S, nodecircuit::Node *p) {
   Glucose::vec<Glucose::Lit> clause;
   Glucose::vec<Glucose::Lit> clauseback;
   bool isOr = p->type == nodecircuit::NODE_OR || p->type == nodecircuit::NODE_NOR;
   assert(isOr || p->type == nodecircuit::NODE_AND || p->type == nodecircuit::NODE_NAND);
   
-  clause.push(Glucose::mkLit(2 * (bias + f.GetNodeIndex(p->name)) + 1, 1));
+  clause.push(Glucose::mkLit(m.at(p) + 1, 1));
   for (auto q: p->inputs) {
-    clauseback.push(Glucose::mkLit(2 * (bias + f.GetNodeIndex(q->name)), isOr));
-    clauseback.push(Glucose::mkLit(2 * (bias + f.GetNodeIndex(q->name)) + 1));
-    clauseback.push(Glucose::mkLit(2 * (bias + f.GetNodeIndex(p->name)) + 1, 1));
+    clauseback.push(Glucose::mkLit(m.at(q), isOr));
+    clauseback.push(Glucose::mkLit(m.at(q) + 1));
+    clauseback.push(Glucose::mkLit(m.at(p) + 1, 1));
     S.addClause(clauseback);
     clauseback.clear();
-    clause.push(Glucose::mkLit(2 * (bias + f.GetNodeIndex(q->name)) + 1));
+    clause.push(Glucose::mkLit(m.at(q) + 1));
   }	
   S.addClause(clause);
   clause.clear();
@@ -46,21 +46,21 @@ void XConstraints(nodecircuit::Circuit &f, Glucose::SimpSolver &S, int bias, nod
   for (auto q: p->inputs) {
     for (int i = 0; i <= p->inputs.size(); i++) {
       foreach_comb(p->inputs.size(), i, [&](int *indices) {
-	  clause.push(Glucose::mkLit(2 * (bias + f.GetNodeIndex(p->name)) + 1));
-	  clause.push(Glucose::mkLit(2 * (bias + f.GetNodeIndex(q->name)) + 1, 1));
+	  clause.push(Glucose::mkLit(m.at(p) + 1));
+	  clause.push(Glucose::mkLit(m.at(q) + 1, 1));
 	  int j = 0;
 	  for (int k = 0; k < i; k++) {
 	    while(j != indices[k]) {
 	      assert(j < indices[k]);
-	      clause.push(Glucose::mkLit(2 * (bias + f.GetNodeIndex((p->inputs[j])->name)), !isOr));
+	      clause.push(Glucose::mkLit(m.at(p->inputs[j]), !isOr));
 	      j++;
 	    }
 	    assert(j == indices[k]);
-	    clause.push(Glucose::mkLit(2 * (bias + f.GetNodeIndex((p->inputs[j])->name)) + 1, 1));
+	    clause.push(Glucose::mkLit(m.at(p->inputs[j]) + 1, 1));
 	    j++;
 	  }
 	  while(j < p->inputs.size()) {
-	    clause.push(Glucose::mkLit(2 * (bias + f.GetNodeIndex((p->inputs[j])->name)), !isOr));
+	    clause.push(Glucose::mkLit(m.at(p->inputs[j]), !isOr));
 	    j++;
 	  }
 	  S.addClause(clause);
@@ -70,106 +70,104 @@ void XConstraints(nodecircuit::Circuit &f, Glucose::SimpSolver &S, int bias, nod
   }
 }
 
-void Ckt2Cnf(nodecircuit::Circuit &f, Glucose::SimpSolver &S, int bias) {
+void Ckt2Cnf(nodecircuit::NodeVector const &gates, std::map<nodecircuit::Node *, int> const &m, Glucose::SimpSolver &S) {
   Glucose::vec<Glucose::Lit> clause;
-  for (auto p: f.all_nodes) {
-    if (p->is_input)
-      continue;
+  for (auto p: gates) {
     switch(p->type) {
     case nodecircuit::NODE_OTHER:
       if (p->name == "1'b0") {
-	S.addClause(Glucose::mkLit(2 * (bias + f.GetNodeIndex(p->name)), 1));
-	S.addClause(Glucose::mkLit(2 * (bias + f.GetNodeIndex(p->name)) + 1, 1));
+	S.addClause(Glucose::mkLit(m.at(p), 1));
+	S.addClause(Glucose::mkLit(m.at(p) + 1, 1));
       }
       else if (p->name == "1'b1") {
-	S.addClause(Glucose::mkLit(2 * (bias + f.GetNodeIndex(p->name))));
-	S.addClause(Glucose::mkLit(2 * (bias + f.GetNodeIndex(p->name)) + 1, 1));
+	S.addClause(Glucose::mkLit(m.at(p)));
+	S.addClause(Glucose::mkLit(m.at(p) + 1, 1));
       }
       else if (p->name == "1'bx") {	  
-	S.addClause(Glucose::mkLit(2 * (bias + f.GetNodeIndex(p->name)) + 1));
+	S.addClause(Glucose::mkLit(m.at(p) + 1));
       }
       break;
     case nodecircuit::NODE_BUF:
       assert(p->inputs.size() == 1);	
-      S.addClause(Glucose::mkLit(2 * (bias + f.GetNodeIndex((p->inputs[0])->name)), 1), Glucose::mkLit(2 * (bias + f.GetNodeIndex(p->name))));	
-      S.addClause(Glucose::mkLit(2 * (bias + f.GetNodeIndex((p->inputs[0])->name)) + 1, 1), Glucose::mkLit(2 * (bias + f.GetNodeIndex(p->name)) + 1));
-      S.addClause(Glucose::mkLit(2 * (bias + f.GetNodeIndex((p->inputs[0])->name))), Glucose::mkLit(2 * (bias + f.GetNodeIndex(p->name)), 1));
-      S.addClause(Glucose::mkLit(2 * (bias + f.GetNodeIndex((p->inputs[0])->name)) + 1), Glucose::mkLit(2 * (bias + f.GetNodeIndex(p->name)) + 1, 1));
+      S.addClause(Glucose::mkLit(m.at(p->inputs[0]), 1), Glucose::mkLit(m.at(p)));	
+      S.addClause(Glucose::mkLit(m.at(p->inputs[0]) + 1, 1), Glucose::mkLit(m.at(p) + 1));
+      S.addClause(Glucose::mkLit(m.at(p->inputs[0])), Glucose::mkLit(m.at(p), 1));
+      S.addClause(Glucose::mkLit(m.at(p->inputs[0]) + 1), Glucose::mkLit(m.at(p) + 1, 1));
       break;
     case nodecircuit::NODE_NOT:
       assert(p->inputs.size() == 1);
-      S.addClause(Glucose::mkLit(2 * (bias + f.GetNodeIndex((p->inputs[0])->name)), 1), Glucose::mkLit(2 * (bias + f.GetNodeIndex(p->name)), 1));	
-      S.addClause(Glucose::mkLit(2 * (bias + f.GetNodeIndex((p->inputs[0])->name)) + 1, 1), Glucose::mkLit(2 * (bias + f.GetNodeIndex(p->name)) + 1));
-      S.addClause(Glucose::mkLit(2 * (bias + f.GetNodeIndex((p->inputs[0])->name))), Glucose::mkLit(2 * (bias + f.GetNodeIndex(p->name))));
-      S.addClause(Glucose::mkLit(2 * (bias + f.GetNodeIndex((p->inputs[0])->name)) + 1), Glucose::mkLit(2 * (bias + f.GetNodeIndex(p->name)) + 1, 1));
+      S.addClause(Glucose::mkLit(m.at(p->inputs[0]), 1), Glucose::mkLit(m.at(p), 1));	
+      S.addClause(Glucose::mkLit(m.at(p->inputs[0]) + 1, 1), Glucose::mkLit(m.at(p) + 1));
+      S.addClause(Glucose::mkLit(m.at(p->inputs[0])), Glucose::mkLit(m.at(p)));
+      S.addClause(Glucose::mkLit(m.at(p->inputs[0]) + 1), Glucose::mkLit(m.at(p) + 1, 1));
       break;
     case nodecircuit::NODE_AND:
-      clause.push(Glucose::mkLit(2 * (bias + f.GetNodeIndex(p->name))));
+      clause.push(Glucose::mkLit(m.at(p)));
       for (auto q: p->inputs) {
-	S.addClause(Glucose::mkLit(2 * (bias + f.GetNodeIndex(q->name))), Glucose::mkLit(2 * (bias + f.GetNodeIndex(p->name)), 1));		 
-	clause.push(Glucose::mkLit(2 * (bias + f.GetNodeIndex(q->name)), 1));
+	S.addClause(Glucose::mkLit(m.at(q)), Glucose::mkLit(m.at(p), 1));		 
+	clause.push(Glucose::mkLit(m.at(q), 1));
       }	
       S.addClause(clause);
       clause.clear();
-      XConstraints(f, S, bias, p);
+      XConstraints(m, S, p);
       break;
     case nodecircuit::NODE_NAND:
-      clause.push(Glucose::mkLit(2 * (bias + f.GetNodeIndex(p->name)), 1));
+      clause.push(Glucose::mkLit(m.at(p), 1));
       for (auto q: p->inputs) {
-	S.addClause(Glucose::mkLit(2 * (bias + f.GetNodeIndex(q->name))), Glucose::mkLit(2 * (bias + f.GetNodeIndex(p->name))));		 
-	clause.push(Glucose::mkLit(2 * (bias + f.GetNodeIndex(q->name)), 1));
+	S.addClause(Glucose::mkLit(m.at(q)), Glucose::mkLit(m.at(p)));		 
+	clause.push(Glucose::mkLit(m.at(q), 1));
       }	
       S.addClause(clause);
       clause.clear();
-      XConstraints(f, S, bias, p);
+      XConstraints(m, S, p);
       break;
     case nodecircuit::NODE_OR:
-      clause.push(Glucose::mkLit(2 * (bias + f.GetNodeIndex(p->name)), 1));
+      clause.push(Glucose::mkLit(m.at(p), 1));
       for (auto q: p->inputs) {
-	S.addClause(Glucose::mkLit(2 * (bias + f.GetNodeIndex(q->name)), 1), Glucose::mkLit(2 * (bias + f.GetNodeIndex(p->name))));		 
-	clause.push(Glucose::mkLit(2 * (bias + f.GetNodeIndex(q->name))));
+	S.addClause(Glucose::mkLit(m.at(q), 1), Glucose::mkLit(m.at(p)));		 
+	clause.push(Glucose::mkLit(m.at(q)));
       }	
       S.addClause(clause);
       clause.clear();
-      XConstraints(f, S, bias, p);
+      XConstraints(m, S, p);
       break;
     case nodecircuit::NODE_NOR:
-      clause.push(Glucose::mkLit(2 * (bias + f.GetNodeIndex(p->name))));
+      clause.push(Glucose::mkLit(m.at(p)));
       for (auto q: p->inputs) {
-	S.addClause(Glucose::mkLit(2 * (bias + f.GetNodeIndex(q->name)), 1), Glucose::mkLit(2 * (bias + f.GetNodeIndex(p->name)), 1));		 
-	clause.push(Glucose::mkLit(2 * (bias + f.GetNodeIndex(q->name))));
+	S.addClause(Glucose::mkLit(m.at(q), 1), Glucose::mkLit(m.at(p), 1));		 
+	clause.push(Glucose::mkLit(m.at(q)));
       }	
       S.addClause(clause);
       clause.clear();
-      XConstraints(f, S, bias, p);
+      XConstraints(m, S, p);
       break;	
     case nodecircuit::NODE_XOR: {
       for (int i = 0; i <= p->inputs.size(); i++) {
 	foreach_comb(p->inputs.size(), i, [&](int *indices) {
-	    clause.push(Glucose::mkLit(2 * (bias + f.GetNodeIndex(p->name)), !(i % 2)));
+	    clause.push(Glucose::mkLit(m.at(p), !(i % 2)));
 	    int j = 0;
 	    for (int k = 0; k < i; k++) {
 	      while(j != indices[k]) {
 		assert(j < indices[k]);
-		clause.push(Glucose::mkLit(2 * (bias + f.GetNodeIndex(p->inputs[j]->name))));
+		clause.push(Glucose::mkLit(m.at(p->inputs[j])));
 		j++;
 	      }
 	      assert(j == indices[k]);
-	      clause.push(Glucose::mkLit(2 * (bias + f.GetNodeIndex(p->inputs[j]->name)), 1));
+	      clause.push(Glucose::mkLit(m.at(p->inputs[j]), 1));
 	      j++;
 	    }
 	    while(j < p->inputs.size()) {
-	      clause.push(Glucose::mkLit(2 * (bias + f.GetNodeIndex(p->inputs[j]->name))));
+	      clause.push(Glucose::mkLit(m.at(p->inputs[j])));
 	      j++;
 	    }
 	    S.addClause(clause);
 	    clause.clear();
 	  });
       }
-      clause.push(Glucose::mkLit(2 * (bias + f.GetNodeIndex(p->name)) + 1, 1));
+      clause.push(Glucose::mkLit(m.at(p) + 1, 1));
       for (auto q: p->inputs) {
-	S.addClause(Glucose::mkLit(2 * (bias + f.GetNodeIndex(q->name)) + 1, 1), Glucose::mkLit(2 * (bias + f.GetNodeIndex(p->name)) + 1));		 
-	clause.push(Glucose::mkLit(2 * (bias + f.GetNodeIndex(q->name)) + 1));
+	S.addClause(Glucose::mkLit(m.at(q) + 1, 1), Glucose::mkLit(m.at(p) + 1));
+	clause.push(Glucose::mkLit(m.at(q) + 1));
       }	
       S.addClause(clause);
       clause.clear();
@@ -178,30 +176,30 @@ void Ckt2Cnf(nodecircuit::Circuit &f, Glucose::SimpSolver &S, int bias) {
     case nodecircuit::NODE_XNOR: {
       for (int i = 0; i <= p->inputs.size(); i++) {
 	foreach_comb(p->inputs.size(), i, [&](int *indices) {
-	    clause.push(Glucose::mkLit(2 * (bias + f.GetNodeIndex(p->name)), i % 2));
+	    clause.push(Glucose::mkLit(m.at(p), i % 2));
 	    int j = 0;
 	    for (int k = 0; k < i; k++) {
 	      while(j != indices[k]) {
 		assert(j < indices[k]);
-		clause.push(Glucose::mkLit(2 * (bias + f.GetNodeIndex(p->inputs[j]->name))));
+		clause.push(Glucose::mkLit(m.at(p->inputs[j])));
 		j++;
 	      }
 	      assert(j == indices[k]);
-	      clause.push(Glucose::mkLit(2 * (bias + f.GetNodeIndex(p->inputs[j]->name)), 1));
+	      clause.push(Glucose::mkLit(m.at(p->inputs[j]), 1));
 	      j++;
 	    }
 	    while(j < p->inputs.size()) {
-	      clause.push(Glucose::mkLit(2 * (bias + f.GetNodeIndex(p->inputs[j]->name))));
+	      clause.push(Glucose::mkLit(m.at(p->inputs[j])));
 	      j++;
 	    }
 	    S.addClause(clause);
 	    clause.clear();
 	  });
       }
-      clause.push(Glucose::mkLit(2 * (bias + f.GetNodeIndex(p->name)) + 1, 1));
+      clause.push(Glucose::mkLit(m.at(p) + 1, 1));
       for (auto q: p->inputs) {
-	S.addClause(Glucose::mkLit(2 * (bias + f.GetNodeIndex(q->name)) + 1, 1), Glucose::mkLit(2 * (bias + f.GetNodeIndex(p->name)) + 1));		 
-	clause.push(Glucose::mkLit(2 * (bias + f.GetNodeIndex(q->name)) + 1));
+	S.addClause(Glucose::mkLit(m.at(q) + 1, 1), Glucose::mkLit(m.at(p) + 1));
+	clause.push(Glucose::mkLit(m.at(q) + 1));
       }	
       S.addClause(clause);
       clause.clear();
@@ -209,166 +207,166 @@ void Ckt2Cnf(nodecircuit::Circuit &f, Glucose::SimpSolver &S, int bias) {
     }
     case nodecircuit::NODE_DC:
       assert(p->inputs.size() == 2);
-      clause.push(Glucose::mkLit(2 * (bias + f.GetNodeIndex(p->name))));
-      clause.push(Glucose::mkLit(2 * (bias + f.GetNodeIndex((p->inputs[0])->name)), 1));
-      clause.push(Glucose::mkLit(2 * (bias + f.GetNodeIndex((p->inputs[0])->name)) + 1));
-      clause.push(Glucose::mkLit(2 * (bias + f.GetNodeIndex((p->inputs[1])->name))));
-      clause.push(Glucose::mkLit(2 * (bias + f.GetNodeIndex((p->inputs[1])->name)) + 1));
+      clause.push(Glucose::mkLit(m.at(p)));
+      clause.push(Glucose::mkLit(m.at(p->inputs[0]), 1));
+      clause.push(Glucose::mkLit(m.at(p->inputs[0]) + 1));
+      clause.push(Glucose::mkLit(m.at(p->inputs[1])));
+      clause.push(Glucose::mkLit(m.at(p->inputs[1]) + 1));
       S.addClause(clause);
       clause.clear();
 
-      clause.push(Glucose::mkLit(2 * (bias + f.GetNodeIndex(p->name)), 1));
-      clause.push(Glucose::mkLit(2 * (bias + f.GetNodeIndex((p->inputs[0])->name))));
-      clause.push(Glucose::mkLit(2 * (bias + f.GetNodeIndex((p->inputs[0])->name)) + 1));
-      clause.push(Glucose::mkLit(2 * (bias + f.GetNodeIndex((p->inputs[1])->name))));
-      clause.push(Glucose::mkLit(2 * (bias + f.GetNodeIndex((p->inputs[1])->name)) + 1));
+      clause.push(Glucose::mkLit(m.at(p), 1));
+      clause.push(Glucose::mkLit(m.at(p->inputs[0])));
+      clause.push(Glucose::mkLit(m.at(p->inputs[0]) + 1));
+      clause.push(Glucose::mkLit(m.at(p->inputs[1])));
+      clause.push(Glucose::mkLit(m.at(p->inputs[1]) + 1));
       S.addClause(clause);
       clause.clear();
 
-      clause.push(Glucose::mkLit(2 * (bias + f.GetNodeIndex(p->name)) + 1, 1));
-      clause.push(Glucose::mkLit(2 * (bias + f.GetNodeIndex((p->inputs[0])->name)) + 1));
-      clause.push(Glucose::mkLit(2 * (bias + f.GetNodeIndex((p->inputs[1])->name))));
-      clause.push(Glucose::mkLit(2 * (bias + f.GetNodeIndex((p->inputs[1])->name)) + 1));
+      clause.push(Glucose::mkLit(m.at(p) + 1, 1));
+      clause.push(Glucose::mkLit(m.at(p->inputs[0]) + 1));
+      clause.push(Glucose::mkLit(m.at(p->inputs[1])));
+      clause.push(Glucose::mkLit(m.at(p->inputs[1]) + 1));
       S.addClause(clause);
       clause.clear();
 
-      S.addClause(Glucose::mkLit(2 * (bias + f.GetNodeIndex(p->name)) + 1), Glucose::mkLit(2 * (bias + f.GetNodeIndex((p->inputs[0])->name)) + 1, 1));	
-      S.addClause(Glucose::mkLit(2 * (bias + f.GetNodeIndex(p->name)) + 1), Glucose::mkLit(2 * (bias + f.GetNodeIndex((p->inputs[1])->name)), 1));
-      S.addClause(Glucose::mkLit(2 * (bias + f.GetNodeIndex(p->name)) + 1), Glucose::mkLit(2 * (bias + f.GetNodeIndex((p->inputs[1])->name)) + 1, 1));	
+      S.addClause(Glucose::mkLit(m.at(p) + 1), Glucose::mkLit(m.at(p->inputs[0]) + 1, 1));
+      S.addClause(Glucose::mkLit(m.at(p) + 1), Glucose::mkLit(m.at(p->inputs[1]), 1));
+      S.addClause(Glucose::mkLit(m.at(p) + 1), Glucose::mkLit(m.at(p->inputs[1]) + 1, 1));
       break;
     case nodecircuit::NODE_MUX:
       assert(p->inputs.size() == 3);
       // S = 0
-      clause.push(Glucose::mkLit(2 * (bias + f.GetNodeIndex(p->name))));
-      clause.push(Glucose::mkLit(2 * (bias + f.GetNodeIndex((p->inputs[0])->name)), 1));
-      clause.push(Glucose::mkLit(2 * (bias + f.GetNodeIndex((p->inputs[0])->name)) + 1));
-      clause.push(Glucose::mkLit(2 * (bias + f.GetNodeIndex((p->inputs[2])->name))));
-      clause.push(Glucose::mkLit(2 * (bias + f.GetNodeIndex((p->inputs[2])->name)) + 1));
+      clause.push(Glucose::mkLit(m.at(p)));
+      clause.push(Glucose::mkLit(m.at(p->inputs[0]), 1));
+      clause.push(Glucose::mkLit(m.at(p->inputs[0]) + 1));
+      clause.push(Glucose::mkLit(m.at(p->inputs[2])));
+      clause.push(Glucose::mkLit(m.at(p->inputs[2]) + 1));
       S.addClause(clause);
       clause.clear();
 
-      clause.push(Glucose::mkLit(2 * (bias + f.GetNodeIndex(p->name)), 1));
-      clause.push(Glucose::mkLit(2 * (bias + f.GetNodeIndex((p->inputs[0])->name))));
-      clause.push(Glucose::mkLit(2 * (bias + f.GetNodeIndex((p->inputs[0])->name)) + 1));
-      clause.push(Glucose::mkLit(2 * (bias + f.GetNodeIndex((p->inputs[2])->name))));
-      clause.push(Glucose::mkLit(2 * (bias + f.GetNodeIndex((p->inputs[2])->name)) + 1)); 
+      clause.push(Glucose::mkLit(m.at(p), 1));
+      clause.push(Glucose::mkLit(m.at(p->inputs[0])));
+      clause.push(Glucose::mkLit(m.at(p->inputs[0]) + 1));
+      clause.push(Glucose::mkLit(m.at(p->inputs[2])));
+      clause.push(Glucose::mkLit(m.at(p->inputs[2]) + 1)); 
       S.addClause(clause);
       clause.clear();
 	
-      clause.push(Glucose::mkLit(2 * (bias + f.GetNodeIndex(p->name)) + 1));
-      clause.push(Glucose::mkLit(2 * (bias + f.GetNodeIndex((p->inputs[0])->name)) + 1, 1));
-      clause.push(Glucose::mkLit(2 * (bias + f.GetNodeIndex((p->inputs[2])->name))));
-      clause.push(Glucose::mkLit(2 * (bias + f.GetNodeIndex((p->inputs[2])->name)) + 1));
+      clause.push(Glucose::mkLit(m.at(p) + 1));
+      clause.push(Glucose::mkLit(m.at(p->inputs[0]) + 1, 1));
+      clause.push(Glucose::mkLit(m.at(p->inputs[2])));
+      clause.push(Glucose::mkLit(m.at(p->inputs[2]) + 1));
       S.addClause(clause);
       clause.clear();
 
-      clause.push(Glucose::mkLit(2 * (bias + f.GetNodeIndex(p->name)) + 1, 1));
-      clause.push(Glucose::mkLit(2 * (bias + f.GetNodeIndex((p->inputs[0])->name)) + 1));
-      clause.push(Glucose::mkLit(2 * (bias + f.GetNodeIndex((p->inputs[2])->name))));
-      clause.push(Glucose::mkLit(2 * (bias + f.GetNodeIndex((p->inputs[2])->name)) + 1));       
+      clause.push(Glucose::mkLit(m.at(p) + 1, 1));
+      clause.push(Glucose::mkLit(m.at(p->inputs[0]) + 1));
+      clause.push(Glucose::mkLit(m.at(p->inputs[2])));
+      clause.push(Glucose::mkLit(m.at(p->inputs[2]) + 1));       
       S.addClause(clause);
       clause.clear();
 
       // S = 1
-      clause.push(Glucose::mkLit(2 * (bias + f.GetNodeIndex(p->name))));
-      clause.push(Glucose::mkLit(2 * (bias + f.GetNodeIndex((p->inputs[1])->name)), 1));
-      clause.push(Glucose::mkLit(2 * (bias + f.GetNodeIndex((p->inputs[1])->name)) + 1));
-      clause.push(Glucose::mkLit(2 * (bias + f.GetNodeIndex((p->inputs[2])->name)), 1));
-      clause.push(Glucose::mkLit(2 * (bias + f.GetNodeIndex((p->inputs[2])->name)) + 1));
+      clause.push(Glucose::mkLit(m.at(p)));
+      clause.push(Glucose::mkLit(m.at(p->inputs[1]), 1));
+      clause.push(Glucose::mkLit(m.at(p->inputs[1]) + 1));
+      clause.push(Glucose::mkLit(m.at(p->inputs[2]), 1));
+      clause.push(Glucose::mkLit(m.at(p->inputs[2]) + 1));
       S.addClause(clause);
       clause.clear();
 
-      clause.push(Glucose::mkLit(2 * (bias + f.GetNodeIndex(p->name)), 1));
-      clause.push(Glucose::mkLit(2 * (bias + f.GetNodeIndex((p->inputs[1])->name))));
-      clause.push(Glucose::mkLit(2 * (bias + f.GetNodeIndex((p->inputs[1])->name)) + 1));
-      clause.push(Glucose::mkLit(2 * (bias + f.GetNodeIndex((p->inputs[2])->name)), 1));
-      clause.push(Glucose::mkLit(2 * (bias + f.GetNodeIndex((p->inputs[2])->name)) + 1));
+      clause.push(Glucose::mkLit(m.at(p), 1));
+      clause.push(Glucose::mkLit(m.at(p->inputs[1])));
+      clause.push(Glucose::mkLit(m.at(p->inputs[1]) + 1));
+      clause.push(Glucose::mkLit(m.at(p->inputs[2]), 1));
+      clause.push(Glucose::mkLit(m.at(p->inputs[2]) + 1));
       S.addClause(clause);
       clause.clear();
 
 	
-      clause.push(Glucose::mkLit(2 * (bias + f.GetNodeIndex(p->name)) + 1));
-      clause.push(Glucose::mkLit(2 * (bias + f.GetNodeIndex((p->inputs[1])->name)) + 1, 1));
-      clause.push(Glucose::mkLit(2 * (bias + f.GetNodeIndex((p->inputs[2])->name)), 1));
-      clause.push(Glucose::mkLit(2 * (bias + f.GetNodeIndex((p->inputs[2])->name)) + 1));
+      clause.push(Glucose::mkLit(m.at(p) + 1));
+      clause.push(Glucose::mkLit(m.at(p->inputs[1]) + 1, 1));
+      clause.push(Glucose::mkLit(m.at(p->inputs[2]), 1));
+      clause.push(Glucose::mkLit(m.at(p->inputs[2]) + 1));
       S.addClause(clause);
       clause.clear();
 
-      clause.push(Glucose::mkLit(2 * (bias + f.GetNodeIndex(p->name)) + 1, 1));
-      clause.push(Glucose::mkLit(2 * (bias + f.GetNodeIndex((p->inputs[1])->name)) + 1));
-      clause.push(Glucose::mkLit(2 * (bias + f.GetNodeIndex((p->inputs[2])->name)), 1));
-      clause.push(Glucose::mkLit(2 * (bias + f.GetNodeIndex((p->inputs[2])->name)) + 1));
+      clause.push(Glucose::mkLit(m.at(p) + 1, 1));
+      clause.push(Glucose::mkLit(m.at(p->inputs[1]) + 1));
+      clause.push(Glucose::mkLit(m.at(p->inputs[2]), 1));
+      clause.push(Glucose::mkLit(m.at(p->inputs[2]) + 1));
       S.addClause(clause);
       clause.clear();
 
       // S = x
-      clause.push(Glucose::mkLit(2 * (bias + f.GetNodeIndex(p->name))));
-      clause.push(Glucose::mkLit(2 * (bias + f.GetNodeIndex((p->inputs[0])->name)), 1));
-      clause.push(Glucose::mkLit(2 * (bias + f.GetNodeIndex((p->inputs[0])->name)) + 1));
-      clause.push(Glucose::mkLit(2 * (bias + f.GetNodeIndex((p->inputs[1])->name)), 1));
-      clause.push(Glucose::mkLit(2 * (bias + f.GetNodeIndex((p->inputs[1])->name)) + 1));
-      clause.push(Glucose::mkLit(2 * (bias + f.GetNodeIndex((p->inputs[2])->name)) + 1, 1));       
+      clause.push(Glucose::mkLit(m.at(p)));
+      clause.push(Glucose::mkLit(m.at(p->inputs[0]), 1));
+      clause.push(Glucose::mkLit(m.at(p->inputs[0]) + 1));
+      clause.push(Glucose::mkLit(m.at(p->inputs[1]), 1));
+      clause.push(Glucose::mkLit(m.at(p->inputs[1]) + 1));
+      clause.push(Glucose::mkLit(m.at(p->inputs[2]) + 1, 1));       
       S.addClause(clause);
       clause.clear();
 
-      clause.push(Glucose::mkLit(2 * (bias + f.GetNodeIndex(p->name)), 1));
-      clause.push(Glucose::mkLit(2 * (bias + f.GetNodeIndex((p->inputs[0])->name))));
-      clause.push(Glucose::mkLit(2 * (bias + f.GetNodeIndex((p->inputs[0])->name)) + 1));
-      clause.push(Glucose::mkLit(2 * (bias + f.GetNodeIndex((p->inputs[1])->name))));	
-      clause.push(Glucose::mkLit(2 * (bias + f.GetNodeIndex((p->inputs[1])->name)) + 1));
-      clause.push(Glucose::mkLit(2 * (bias + f.GetNodeIndex((p->inputs[2])->name)) + 1, 1));       
+      clause.push(Glucose::mkLit(m.at(p), 1));
+      clause.push(Glucose::mkLit(m.at(p->inputs[0])));
+      clause.push(Glucose::mkLit(m.at(p->inputs[0]) + 1));
+      clause.push(Glucose::mkLit(m.at(p->inputs[1])));	
+      clause.push(Glucose::mkLit(m.at(p->inputs[1]) + 1));
+      clause.push(Glucose::mkLit(m.at(p->inputs[2]) + 1, 1));       
       S.addClause(clause);
       clause.clear();
 
-      clause.push(Glucose::mkLit(2 * (bias + f.GetNodeIndex(p->name)) + 1));
-      clause.push(Glucose::mkLit(2 * (bias + f.GetNodeIndex((p->inputs[0])->name))));
-      clause.push(Glucose::mkLit(2 * (bias + f.GetNodeIndex((p->inputs[1])->name)), 1));
-      clause.push(Glucose::mkLit(2 * (bias + f.GetNodeIndex((p->inputs[2])->name)) + 1, 1));       
+      clause.push(Glucose::mkLit(m.at(p) + 1));
+      clause.push(Glucose::mkLit(m.at(p->inputs[0])));
+      clause.push(Glucose::mkLit(m.at(p->inputs[1]), 1));
+      clause.push(Glucose::mkLit(m.at(p->inputs[2]) + 1, 1));       
       S.addClause(clause);
       clause.clear();
 
-      clause.push(Glucose::mkLit(2 * (bias + f.GetNodeIndex(p->name)) + 1));
-      clause.push(Glucose::mkLit(2 * (bias + f.GetNodeIndex((p->inputs[0])->name)), 1));
-      clause.push(Glucose::mkLit(2 * (bias + f.GetNodeIndex((p->inputs[1])->name))));	
-      clause.push(Glucose::mkLit(2 * (bias + f.GetNodeIndex((p->inputs[2])->name)) + 1, 1));       
+      clause.push(Glucose::mkLit(m.at(p) + 1));
+      clause.push(Glucose::mkLit(m.at(p->inputs[0]), 1));
+      clause.push(Glucose::mkLit(m.at(p->inputs[1])));	
+      clause.push(Glucose::mkLit(m.at(p->inputs[2]) + 1, 1));       
       S.addClause(clause);
       clause.clear();
 
-      clause.push(Glucose::mkLit(2 * (bias + f.GetNodeIndex(p->name)) + 1));
-      clause.push(Glucose::mkLit(2 * (bias + f.GetNodeIndex((p->inputs[0])->name)) + 1, 1));	
-      clause.push(Glucose::mkLit(2 * (bias + f.GetNodeIndex((p->inputs[2])->name)) + 1, 1));       
+      clause.push(Glucose::mkLit(m.at(p) + 1));
+      clause.push(Glucose::mkLit(m.at(p->inputs[0]) + 1, 1));	
+      clause.push(Glucose::mkLit(m.at(p->inputs[2]) + 1, 1));       
       S.addClause(clause);
       clause.clear();
 
-      clause.push(Glucose::mkLit(2 * (bias + f.GetNodeIndex(p->name)) + 1));
-      clause.push(Glucose::mkLit(2 * (bias + f.GetNodeIndex((p->inputs[1])->name)) + 1, 1));	
-      clause.push(Glucose::mkLit(2 * (bias + f.GetNodeIndex((p->inputs[2])->name)) + 1, 1));       
+      clause.push(Glucose::mkLit(m.at(p) + 1));
+      clause.push(Glucose::mkLit(m.at(p->inputs[1]) + 1, 1));	
+      clause.push(Glucose::mkLit(m.at(p->inputs[2]) + 1, 1));       
       S.addClause(clause);
       clause.clear();
 
-      clause.push(Glucose::mkLit(2 * (bias + f.GetNodeIndex(p->name)) + 1, 1));
-      clause.push(Glucose::mkLit(2 * (bias + f.GetNodeIndex((p->inputs[0])->name)), 1));
-      clause.push(Glucose::mkLit(2 * (bias + f.GetNodeIndex((p->inputs[0])->name)) + 1));
-      clause.push(Glucose::mkLit(2 * (bias + f.GetNodeIndex((p->inputs[1])->name)), 1));
-      clause.push(Glucose::mkLit(2 * (bias + f.GetNodeIndex((p->inputs[1])->name)) + 1));
-      clause.push(Glucose::mkLit(2 * (bias + f.GetNodeIndex((p->inputs[2])->name)) + 1, 1));       
+      clause.push(Glucose::mkLit(m.at(p) + 1, 1));
+      clause.push(Glucose::mkLit(m.at(p->inputs[0]), 1));
+      clause.push(Glucose::mkLit(m.at(p->inputs[0]) + 1));
+      clause.push(Glucose::mkLit(m.at(p->inputs[1]), 1));
+      clause.push(Glucose::mkLit(m.at(p->inputs[1]) + 1));
+      clause.push(Glucose::mkLit(m.at(p->inputs[2]) + 1, 1));       
       S.addClause(clause);
       clause.clear();
 
-      clause.push(Glucose::mkLit(2 * (bias + f.GetNodeIndex(p->name)) + 1, 1));
-      clause.push(Glucose::mkLit(2 * (bias + f.GetNodeIndex((p->inputs[0])->name))));
-      clause.push(Glucose::mkLit(2 * (bias + f.GetNodeIndex((p->inputs[0])->name)) + 1));
-      clause.push(Glucose::mkLit(2 * (bias + f.GetNodeIndex((p->inputs[1])->name))));	
-      clause.push(Glucose::mkLit(2 * (bias + f.GetNodeIndex((p->inputs[1])->name)) + 1));
-      clause.push(Glucose::mkLit(2 * (bias + f.GetNodeIndex((p->inputs[2])->name)) + 1, 1));       
+      clause.push(Glucose::mkLit(m.at(p) + 1, 1));
+      clause.push(Glucose::mkLit(m.at(p->inputs[0])));
+      clause.push(Glucose::mkLit(m.at(p->inputs[0]) + 1));
+      clause.push(Glucose::mkLit(m.at(p->inputs[1])));	
+      clause.push(Glucose::mkLit(m.at(p->inputs[1]) + 1));
+      clause.push(Glucose::mkLit(m.at(p->inputs[2]) + 1, 1));       
       S.addClause(clause);
       clause.clear();
       break;
     case nodecircuit::NODE_ISX:
       assert(p->inputs.size() == 1);
-      S.addClause(Glucose::mkLit(2 * (bias + f.GetNodeIndex((p->inputs[0])->name)) + 1, 1), Glucose::mkLit(2 * (bias + f.GetNodeIndex(p->name))));	
-      S.addClause(Glucose::mkLit(2 * (bias + f.GetNodeIndex((p->inputs[0])->name)) + 1), Glucose::mkLit(2 * (bias + f.GetNodeIndex(p->name)), 1));
-      S.addClause(Glucose::mkLit(2 * (bias + f.GetNodeIndex(p->name)) + 1, 1));
+      S.addClause(Glucose::mkLit(m.at(p->inputs[0]) + 1, 1), Glucose::mkLit(m.at(p)));	
+      S.addClause(Glucose::mkLit(m.at(p->inputs[0]) + 1), Glucose::mkLit(m.at(p), 1));
+      S.addClause(Glucose::mkLit(m.at(p) + 1, 1));
       break;
     default:
       assert(0);
@@ -376,7 +374,7 @@ void Ckt2Cnf(nodecircuit::Circuit &f, Glucose::SimpSolver &S, int bias) {
     }
   }            
 }
-
+/*
 void SatSolve(nodecircuit::Circuit &gf, nodecircuit::Circuit &rf, std::vector<bool> &result) {
   Glucose::SimpSolver S;
   Glucose::vec<Glucose::Lit> clause;
@@ -477,7 +475,7 @@ void SatSolve(nodecircuit::Circuit &gf, nodecircuit::Circuit &rf, std::vector<bo
 	result.push_back(0);      
     }
 }
-
+*/
 void Buf(Glucose::SimpSolver &S, Glucose::Lit a, Glucose::Lit b) {
   S.addClause(~a, b);
   S.addClause(a, ~b);
