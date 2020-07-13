@@ -869,58 +869,40 @@ void Ckt2Cnf2(nodecircuit::NodeVector const &gates, std::map<nodecircuit::Node *
 void SatSolve2(nodecircuit::Circuit &gf, nodecircuit::Circuit &rf, std::vector<bool> &result) {
   Glucose::SimpSolver S;
   Glucose::vec<Glucose::Lit> clause;
-  
-  // establish variables
-  // each signal(before milter circuit) consists of two bits, if the second bit is 1, the value of the signal is x, despite the first bit 
-  for (int i = 0; i < gf.all_nodes.size(); i++) { 
-    S.newVar();
-    S.newVar();
-  }
-  for (int i = 0; i < rf.all_nodes.size(); i++) {
-    S.newVar();
-    S.newVar();
-  }
-  // variables representing xor-ed results
-  for (int i = 0; i < gf.outputs.size(); i++) 
-    S.newVar();
-    // variable representing mitered results
-  S.newVar();
-  
-  // correlate inputs of the two circuits
-  for (int i = 0; i < gf.inputs.size(); i++) {
-    S.addClause(Glucose::mkLit(2 * i, 1), Glucose::mkLit(2 * (gf.all_nodes.size() + i)));
-    S.addClause(Glucose::mkLit(2 * i), Glucose::mkLit(2 * (gf.all_nodes.size() + i), 1));
 
-    // for PIs, the values of the second bits are always 0
-    S.addClause(Glucose::mkLit(2 * i + 1, 1));
-    S.addClause(Glucose::mkLit(2 * (gf.all_nodes.size() + i) + 1, 1));
-  }
-
-  nodecircuit::NodeVector gates;
   std::map<nodecircuit::Node *, int> gm;
+  std::map<nodecircuit::Node *, int> rm;
+  
+  // inputs
   for (int i = 0; i < gf.inputs.size(); i++) {
-    gm[gf.inputs[i]] = i;
+    gm[gf.inputs[i]] = rm[rf.inputs[i]] = S.newVar() >> 1;
+    S.addClause(Glucose::mkLit(S.newVar(), 1));
   }
+  
+  // gates in g
+  nodecircuit::NodeVector gates;
   gf.GetGates(gates);
   for (int i = 0; i < gates.size(); i++) {
-    gm[gates[i]] = i + gf.inputs.size();
+    gm[gates[i]] = S.newVar() >> 1;
+    S.newVar();
   }
   Ckt2Cnf2(gates, gm, S, 0);
-  std::map<nodecircuit::Node *, int> rm;
-  for (int i = 0; i < rf.inputs.size(); i++) {
-    rm[rf.inputs[i]] = i;
-  }
+
+  gates.clear();
   rf.GetGates(gates);
   for (int i = 0; i < gates.size(); i++) {
-    rm[gates[i]] = i + rf.inputs.size();
+    rm[gates[i]] = S.newVar() >> 1;
+    S.newVar();
   }
-  Ckt2Cnf2(gates, rm, S, gf.all_nodes.size());
+  Ckt2Cnf2(gates, rm, S, 0);
   
   // miter outputs of the two circuits
+  std::vector<int> mos;
   for (int i = 0; i < gf.outputs.size(); i++) {
     int go = 2 * gm[gf.outputs[i]];
-    int ro = 2 * (gf.all_nodes.size() + rm[rf.outputs[i]]);
-    int mo = i + 2 * (gf.all_nodes.size() + rf.all_nodes.size());
+    int ro = 2 * rm[rf.outputs[i]];
+    int mo = S.newVar();
+    mos.push_back(mo);
     // if one output of gf is x, that output is compatible equivalent to the corresponding output of rf
     S.addClause(Glucose::mkLit(mo, 1), Glucose::mkLit(go + 1, 1));
 
@@ -964,10 +946,9 @@ void SatSolve2(nodecircuit::Circuit &gf, nodecircuit::Circuit &rf, std::vector<b
     S.addClause(clause);
     clause.clear();    
   }
-  int o = 2 * (gf.all_nodes.size() + rf.all_nodes.size()) + gf.outputs.size();
+  int o = S.newVar();
   clause.push(Glucose::mkLit(o, 1));
-  for (int i = 0; i < gf.outputs.size(); i++) {
-    int mo = i + 2 * (gf.all_nodes.size() + rf.all_nodes.size());
+  for (int mo : mos) {
     S.addClause(Glucose::mkLit(mo, 1), Glucose::mkLit(o));
     clause.push(Glucose::mkLit(mo));
   }
@@ -979,7 +960,7 @@ void SatSolve2(nodecircuit::Circuit &gf, nodecircuit::Circuit &rf, std::vector<b
   bool r = S.solve();
   if (r)
     for (int i = 0; i < gf.inputs.size(); i++) { 
-      if(S.model[2 * i] == l_True) 
+      if(S.model[2 * gm[gf.inputs[i]]] == l_True)
 	result.push_back(1);
       else
 	result.push_back(0);      
