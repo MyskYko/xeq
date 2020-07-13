@@ -478,7 +478,11 @@ void SatSolve(nodecircuit::Circuit &gf, nodecircuit::Circuit &rf, std::vector<bo
     }
 }
 
-void And2(Glucose::SimpSolver &S, Glucose::Lit a, Glucose::Lit b, Glucose::Lit c) {
+void Buf(Glucose::SimpSolver &S, Glucose::Lit a, Glucose::Lit b) {
+  S.addClause(~a, b);
+  S.addClause(a, ~b);
+}
+void And2(Glucose::SimpSolver &S, Glucose::Lit a, Glucose::Lit b, Glucose::Lit c) {  
   S.addClause(a, ~c);
   S.addClause(b, ~c);
   S.addClause(~a, ~b, c);
@@ -491,6 +495,21 @@ void Xor2(Glucose::SimpSolver &S, Glucose::Lit a, Glucose::Lit b, Glucose::Lit c
   S.addClause(~a, ~b, ~c);
   S.addClause(~a, b, c);
   S.addClause(a, ~b, c);
+}
+void Ite2(Glucose::SimpSolver &S, Glucose::Lit c, Glucose::Lit t, Glucose::Lit e, Glucose::Lit r) {
+  Glucose::Lit t0 = Glucose::mkLit(S.newVar());
+  Glucose::Lit t1 = Glucose::mkLit(S.newVar());
+  And2(S, c, t, t0);
+  And2(S, ~c, e, t1);
+  Or2(S, t0, t1, r);
+}
+void OrN(Glucose::SimpSolver &S, Glucose::vec<Glucose::Lit> &v, Glucose::Lit r) {
+  for(int i = 0; i < v.size(); i++) {
+    S.addClause(~v[i], r);
+  }
+  v.push(~r);
+  S.addClause(v);
+  v.pop();
 }
 
 void Ckt2Cnf2(nodecircuit::NodeVector const &gates, std::map<nodecircuit::Node *, int> const &m, Glucose::SimpSolver &S) {
@@ -511,18 +530,14 @@ void Ckt2Cnf2(nodecircuit::NodeVector const &gates, std::map<nodecircuit::Node *
       }
       break;
     case nodecircuit::NODE_BUF:
-      assert(p->inputs.size() == 1);	
-      S.addClause(Glucose::mkLit(m.at(p->inputs[0]), 1), Glucose::mkLit(m.at(p)));	
-      S.addClause(Glucose::mkLit(m.at(p->inputs[0]) + 1, 1), Glucose::mkLit(m.at(p) + 1));
-      S.addClause(Glucose::mkLit(m.at(p->inputs[0])), Glucose::mkLit(m.at(p), 1));
-      S.addClause(Glucose::mkLit(m.at(p->inputs[0]) + 1), Glucose::mkLit(m.at(p) + 1, 1));
+      assert(p->inputs.size() == 1);
+      Buf(S, Glucose::mkLit(m.at(p->inputs[0])), Glucose::mkLit(m.at(p)));
+      Buf(S, Glucose::mkLit(m.at(p->inputs[0]) + 1), Glucose::mkLit(m.at(p) + 1));
       break;
     case nodecircuit::NODE_NOT:
       assert(p->inputs.size() == 1);
-      S.addClause(Glucose::mkLit(m.at(p->inputs[0]), 1), Glucose::mkLit(m.at(p), 1));	
-      S.addClause(Glucose::mkLit(m.at(p->inputs[0]) + 1, 1), Glucose::mkLit(m.at(p) + 1));
-      S.addClause(Glucose::mkLit(m.at(p->inputs[0])), Glucose::mkLit(m.at(p)));
-      S.addClause(Glucose::mkLit(m.at(p->inputs[0]) + 1), Glucose::mkLit(m.at(p) + 1, 1));
+      Buf(S, Glucose::mkLit(m.at(p->inputs[0]), 1), Glucose::mkLit(m.at(p)));
+      Buf(S, Glucose::mkLit(m.at(p->inputs[0]) + 1), Glucose::mkLit(m.at(p) + 1));
       break;
     case nodecircuit::NODE_AND:
       {
@@ -543,13 +558,15 @@ void Ckt2Cnf2(nodecircuit::NodeVector const &gates, std::map<nodecircuit::Node *
 	  Glucose::Lit t0 = Glucose::mkLit(S.newVar());
 	  Glucose::Lit t1 = Glucose::mkLit(S.newVar());
 	  Glucose::Lit t2 = Glucose::mkLit(S.newVar());
-	  Glucose::Lit t3 = Glucose::mkLit(S.newVar());
 	  And2(S, in0, in1, out);
 	  And2(S, in0x, in1x, t0);
 	  And2(S, in0, in1x, t1);
 	  And2(S, in0x, in1, t2);
-	  Or2(S, t0, t1, t3);
-	  Or2(S, t2, t3, outx);
+	  clause.clear();
+	  clause.push(t0);
+	  clause.push(t1);
+	  clause.push(t2);
+	  OrN(S, clause, outx);
 	  in0 = out;
 	  in0x = outx;
 	}
@@ -574,13 +591,15 @@ void Ckt2Cnf2(nodecircuit::NodeVector const &gates, std::map<nodecircuit::Node *
 	  Glucose::Lit t0 = Glucose::mkLit(S.newVar());
 	  Glucose::Lit t1 = Glucose::mkLit(S.newVar());
 	  Glucose::Lit t2 = Glucose::mkLit(S.newVar());
-	  Glucose::Lit t3 = Glucose::mkLit(S.newVar());
 	  And2(S, in0, in1, out);
 	  And2(S, in0x, in1x, t0);
 	  And2(S, in0, in1x, t1);
 	  And2(S, in0x, in1, t2);
-	  Or2(S, t0, t1, t3);
-	  Or2(S, t2, t3, outx);
+	  clause.clear();
+	  clause.push(t0);
+	  clause.push(t1);
+	  clause.push(t2);
+	  OrN(S, clause, outx);
 	  in0 = out;
 	  in0x = outx;
 	}
@@ -605,13 +624,15 @@ void Ckt2Cnf2(nodecircuit::NodeVector const &gates, std::map<nodecircuit::Node *
 	  Glucose::Lit t0 = Glucose::mkLit(S.newVar());
 	  Glucose::Lit t1 = Glucose::mkLit(S.newVar());
 	  Glucose::Lit t2 = Glucose::mkLit(S.newVar());
-	  Glucose::Lit t3 = Glucose::mkLit(S.newVar());
 	  Or2(S, in0, in1, out);
 	  And2(S, in0x, in1x, t0);
 	  And2(S, ~in0, in1x, t1);
 	  And2(S, in0x, ~in1, t2);
-	  Or2(S, t0, t1, t3);
-	  Or2(S, t2, t3, outx);
+	  clause.clear();
+	  clause.push(t0);
+	  clause.push(t1);
+	  clause.push(t2);
+	  OrN(S, clause, outx);
 	  in0 = out;
 	  in0x = outx;
 	}
@@ -636,13 +657,15 @@ void Ckt2Cnf2(nodecircuit::NodeVector const &gates, std::map<nodecircuit::Node *
 	  Glucose::Lit t0 = Glucose::mkLit(S.newVar());
 	  Glucose::Lit t1 = Glucose::mkLit(S.newVar());
 	  Glucose::Lit t2 = Glucose::mkLit(S.newVar());
-	  Glucose::Lit t3 = Glucose::mkLit(S.newVar());
 	  Or2(S, in0, in1, out);
 	  And2(S, in0x, in1x, t0);
 	  And2(S, ~in0, in1x, t1);
 	  And2(S, in0x, ~in1, t2);
-	  Or2(S, t0, t1, t3);
-	  Or2(S, t2, t3, outx);
+	  clause.clear();
+	  clause.push(t0);
+	  clause.push(t1);
+	  clause.push(t2);
+	  OrN(S, clause, outx);
 	  in0 = out;
 	  in0x = outx;
 	}
@@ -663,13 +686,11 @@ void Ckt2Cnf2(nodecircuit::NodeVector const &gates, std::map<nodecircuit::Node *
 	  Xor2(S, in0, in1, out);
 	  in0 = out;
 	}
-	clause.push(Glucose::mkLit(m.at(p) + 1, 1));
-	for (auto q: p->inputs) {
-	  S.addClause(Glucose::mkLit((m.at(q)) + 1, 1), Glucose::mkLit(m.at(p) + 1));		 
-	  clause.push(Glucose::mkLit((m.at(q)) + 1));
-	}	
-	S.addClause(clause);
 	clause.clear();
+	for (auto q: p->inputs) {
+	  clause.push(Glucose::mkLit(m.at(q) + 1));
+	}
+	OrN(S, clause, Glucose::mkLit(m.at(p) + 1));
 	break;
       }
     case nodecircuit::NODE_XNOR:
@@ -687,183 +708,59 @@ void Ckt2Cnf2(nodecircuit::NodeVector const &gates, std::map<nodecircuit::Node *
 	  Xor2(S, in0, in1, out);
 	  in0 = out;
 	}
-	clause.push(Glucose::mkLit(m.at(p) + 1, 1));
-	for (auto q: p->inputs) {
-	  S.addClause(Glucose::mkLit((m.at(q)) + 1, 1), Glucose::mkLit(m.at(p) + 1));		 
-	  clause.push(Glucose::mkLit((m.at(q)) + 1));
-	}
-	S.addClause(clause);
 	clause.clear();
+	for (auto q: p->inputs) {
+	  clause.push(Glucose::mkLit(m.at(q) + 1));
+	}
+	OrN(S, clause, Glucose::mkLit(m.at(p) + 1));
 	break;
       }
     case nodecircuit::NODE_DC:
-      assert(p->inputs.size() == 2);
-      clause.push(Glucose::mkLit(m.at(p)));
-      clause.push(Glucose::mkLit(m.at(p->inputs[0]), 1));
-      clause.push(Glucose::mkLit(m.at(p->inputs[0]) + 1));
-      clause.push(Glucose::mkLit(m.at(p->inputs[1])));
-      clause.push(Glucose::mkLit(m.at(p->inputs[1]) + 1));
-      S.addClause(clause);
-      clause.clear();
-
-      clause.push(Glucose::mkLit(m.at(p), 1));
-      clause.push(Glucose::mkLit(m.at(p->inputs[0])));
-      clause.push(Glucose::mkLit(m.at(p->inputs[0]) + 1));
-      clause.push(Glucose::mkLit(m.at(p->inputs[1])));
-      clause.push(Glucose::mkLit(m.at(p->inputs[1]) + 1));
-      S.addClause(clause);
-      clause.clear();
-
-      clause.push(Glucose::mkLit(m.at(p) + 1, 1));
-      clause.push(Glucose::mkLit(m.at(p->inputs[0]) + 1));
-      clause.push(Glucose::mkLit(m.at(p->inputs[1])));
-      clause.push(Glucose::mkLit(m.at(p->inputs[1]) + 1));
-      S.addClause(clause);
-      clause.clear();
-
-      S.addClause(Glucose::mkLit(m.at(p) + 1), Glucose::mkLit(m.at(p->inputs[0]) + 1, 1));	
-      S.addClause(Glucose::mkLit(m.at(p) + 1), Glucose::mkLit(m.at(p->inputs[1]), 1));
-      S.addClause(Glucose::mkLit(m.at(p) + 1), Glucose::mkLit(m.at(p->inputs[1]) + 1, 1));	
-      break;
+      {
+	assert(p->inputs.size() == 2);
+	Buf(S, Glucose::mkLit(m.at(p->inputs[0])), Glucose::mkLit(m.at(p)));
+	clause.clear();
+	clause.push(Glucose::mkLit(m.at(p->inputs[0]) + 1));
+	clause.push(Glucose::mkLit(m.at(p->inputs[1])));
+	clause.push(Glucose::mkLit(m.at(p->inputs[1]) + 1));
+	OrN(S, clause, Glucose::mkLit(m.at(p) + 1));
+	break;
+      }
     case nodecircuit::NODE_MUX:
-      assert(p->inputs.size() == 3);
-      // S = 0
-      clause.push(Glucose::mkLit(m.at(p)));
-      clause.push(Glucose::mkLit(m.at(p->inputs[0]), 1));
-      clause.push(Glucose::mkLit(m.at(p->inputs[0]) + 1));
-      clause.push(Glucose::mkLit(m.at(p->inputs[2])));
-      clause.push(Glucose::mkLit(m.at(p->inputs[2]) + 1));
-      S.addClause(clause);
-      clause.clear();
-
-      clause.push(Glucose::mkLit(m.at(p), 1));
-      clause.push(Glucose::mkLit(m.at(p->inputs[0])));
-      clause.push(Glucose::mkLit(m.at(p->inputs[0]) + 1));
-      clause.push(Glucose::mkLit(m.at(p->inputs[2])));
-      clause.push(Glucose::mkLit(m.at(p->inputs[2]) + 1)); 
-      S.addClause(clause);
-      clause.clear();
-	
-      clause.push(Glucose::mkLit(m.at(p) + 1));
-      clause.push(Glucose::mkLit(m.at(p->inputs[0]) + 1, 1));
-      clause.push(Glucose::mkLit(m.at(p->inputs[2])));
-      clause.push(Glucose::mkLit(m.at(p->inputs[2]) + 1));
-      S.addClause(clause);
-      clause.clear();
-
-      clause.push(Glucose::mkLit(m.at(p) + 1, 1));
-      clause.push(Glucose::mkLit(m.at(p->inputs[0]) + 1));
-      clause.push(Glucose::mkLit(m.at(p->inputs[2])));
-      clause.push(Glucose::mkLit(m.at(p->inputs[2]) + 1));       
-      S.addClause(clause);
-      clause.clear();
-
-      // S = 1
-      clause.push(Glucose::mkLit(m.at(p)));
-      clause.push(Glucose::mkLit(m.at(p->inputs[1]), 1));
-      clause.push(Glucose::mkLit(m.at(p->inputs[1]) + 1));
-      clause.push(Glucose::mkLit(m.at(p->inputs[2]), 1));
-      clause.push(Glucose::mkLit(m.at(p->inputs[2]) + 1));
-      S.addClause(clause);
-      clause.clear();
-
-      clause.push(Glucose::mkLit(m.at(p), 1));
-      clause.push(Glucose::mkLit(m.at(p->inputs[1])));
-      clause.push(Glucose::mkLit(m.at(p->inputs[1]) + 1));
-      clause.push(Glucose::mkLit(m.at(p->inputs[2]), 1));
-      clause.push(Glucose::mkLit(m.at(p->inputs[2]) + 1));
-      S.addClause(clause);
-      clause.clear();
-
-	
-      clause.push(Glucose::mkLit(m.at(p) + 1));
-      clause.push(Glucose::mkLit(m.at(p->inputs[1]) + 1, 1));
-      clause.push(Glucose::mkLit(m.at(p->inputs[2]), 1));
-      clause.push(Glucose::mkLit(m.at(p->inputs[2]) + 1));
-      S.addClause(clause);
-      clause.clear();
-
-      clause.push(Glucose::mkLit(m.at(p) + 1, 1));
-      clause.push(Glucose::mkLit(m.at(p->inputs[1]) + 1));
-      clause.push(Glucose::mkLit(m.at(p->inputs[2]), 1));
-      clause.push(Glucose::mkLit(m.at(p->inputs[2]) + 1));
-      S.addClause(clause);
-      clause.clear();
-
-      // S = x
-      clause.push(Glucose::mkLit(m.at(p)));
-      clause.push(Glucose::mkLit(m.at(p->inputs[0]), 1));
-      clause.push(Glucose::mkLit(m.at(p->inputs[0]) + 1));
-      clause.push(Glucose::mkLit(m.at(p->inputs[1]), 1));
-      clause.push(Glucose::mkLit(m.at(p->inputs[1]) + 1));
-      clause.push(Glucose::mkLit(m.at(p->inputs[2]) + 1, 1));       
-      S.addClause(clause);
-      clause.clear();
-
-      clause.push(Glucose::mkLit(m.at(p), 1));
-      clause.push(Glucose::mkLit(m.at(p->inputs[0])));
-      clause.push(Glucose::mkLit(m.at(p->inputs[0]) + 1));
-      clause.push(Glucose::mkLit(m.at(p->inputs[1])));	
-      clause.push(Glucose::mkLit(m.at(p->inputs[1]) + 1));
-      clause.push(Glucose::mkLit(m.at(p->inputs[2]) + 1, 1));       
-      S.addClause(clause);
-      clause.clear();
-
-      clause.push(Glucose::mkLit(m.at(p) + 1));
-      clause.push(Glucose::mkLit(m.at(p->inputs[0])));
-      clause.push(Glucose::mkLit(m.at(p->inputs[1]), 1));
-      clause.push(Glucose::mkLit(m.at(p->inputs[2]) + 1, 1));       
-      S.addClause(clause);
-      clause.clear();
-
-      clause.push(Glucose::mkLit(m.at(p) + 1));
-      clause.push(Glucose::mkLit(m.at(p->inputs[0]), 1));
-      clause.push(Glucose::mkLit(m.at(p->inputs[1])));	
-      clause.push(Glucose::mkLit(m.at(p->inputs[2]) + 1, 1));       
-      S.addClause(clause);
-      clause.clear();
-
-      clause.push(Glucose::mkLit(m.at(p) + 1));
-      clause.push(Glucose::mkLit(m.at(p->inputs[0]) + 1, 1));	
-      clause.push(Glucose::mkLit(m.at(p->inputs[2]) + 1, 1));       
-      S.addClause(clause);
-      clause.clear();
-
-      clause.push(Glucose::mkLit(m.at(p) + 1));
-      clause.push(Glucose::mkLit(m.at(p->inputs[1]) + 1, 1));	
-      clause.push(Glucose::mkLit(m.at(p->inputs[2]) + 1, 1));       
-      S.addClause(clause);
-      clause.clear();
-
-      clause.push(Glucose::mkLit(m.at(p) + 1, 1));
-      clause.push(Glucose::mkLit(m.at(p->inputs[0]), 1));
-      clause.push(Glucose::mkLit(m.at(p->inputs[0]) + 1));
-      clause.push(Glucose::mkLit(m.at(p->inputs[1]), 1));
-      clause.push(Glucose::mkLit(m.at(p->inputs[1]) + 1));
-      clause.push(Glucose::mkLit(m.at(p->inputs[2]) + 1, 1));       
-      S.addClause(clause);
-      clause.clear();
-
-      clause.push(Glucose::mkLit(m.at(p) + 1, 1));
-      clause.push(Glucose::mkLit(m.at(p->inputs[0])));
-      clause.push(Glucose::mkLit(m.at(p->inputs[0]) + 1));
-      clause.push(Glucose::mkLit(m.at(p->inputs[1])));	
-      clause.push(Glucose::mkLit(m.at(p->inputs[1]) + 1));
-      clause.push(Glucose::mkLit(m.at(p->inputs[2]) + 1, 1));       
-      S.addClause(clause);
-      clause.clear();
-      break;
+      {
+	assert(p->inputs.size() == 3);
+	Glucose::Lit in0 = Glucose::mkLit(m.at(p->inputs[0]));
+	Glucose::Lit in0x = Glucose::mkLit(m.at(p->inputs[0]) + 1);
+	Glucose::Lit in1 = Glucose::mkLit(m.at(p->inputs[1]));
+	Glucose::Lit in1x = Glucose::mkLit(m.at(p->inputs[1]) + 1);
+	Glucose::Lit in2 = Glucose::mkLit(m.at(p->inputs[2]));
+	Glucose::Lit in2x = Glucose::mkLit(m.at(p->inputs[2]) + 1);
+	Glucose::Lit out = Glucose::mkLit(m.at(p));
+	Glucose::Lit outx = Glucose::mkLit(m.at(p) + 1);
+	Ite2(S, in2, in1, in0, out);
+	Glucose::Lit t0 = Glucose::mkLit(S.newVar());
+	Glucose::Lit t1 = Glucose::mkLit(S.newVar());
+	Glucose::Lit t2 = Glucose::mkLit(S.newVar());
+	Glucose::Lit t3 = Glucose::mkLit(S.newVar());
+	Glucose::Lit t4 = Glucose::mkLit(S.newVar());
+	Ite2(S, in2, in1x, in0x, t0);
+	Or2(S, in0x, in1x, t1);
+	Xor2(S, in0, in1, t2);
+	Or2(S, t1, t2, t3);
+	And2(S, in2x, t3, t4);
+	Or2(S, t0, t4, outx);
+	break;
+      }
     case nodecircuit::NODE_ISX:
       assert(p->inputs.size() == 1);
-      S.addClause(Glucose::mkLit(m.at(p->inputs[0]) + 1, 1), Glucose::mkLit(m.at(p)));	
-      S.addClause(Glucose::mkLit(m.at(p->inputs[0]) + 1), Glucose::mkLit(m.at(p), 1));
+      Buf(S, Glucose::mkLit(m.at(p->inputs[0]) + 1), Glucose::mkLit(m.at(p)));
       S.addClause(Glucose::mkLit(m.at(p) + 1, 1));
       break;
     default:
       assert(0);
       break;
     }
-  }            
+  }
 }
 
 void SatSolve2(nodecircuit::Circuit &gf, nodecircuit::Circuit &rf, std::vector<bool> &result) {
