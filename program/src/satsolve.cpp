@@ -795,74 +795,36 @@ void SatSolve2(nodecircuit::Circuit &gf, nodecircuit::Circuit &rf, std::vector<b
   Ckt2Cnf2(gates, rm, S);
   
   // miter outputs of the two circuits
-  std::vector<int> mos;
-  for (int i = 0; i < gf.outputs.size(); i++) {
-    int go = gm[gf.outputs[i]];
-    int ro = rm[rf.outputs[i]];
-    int mo = S.newVar();
-    mos.push_back(mo);
-    // if one output of gf is x, that output is compatible equivalent to the corresponding output of rf
-    S.addClause(Glucose::mkLit(mo, 1), Glucose::mkLit(go + 1, 1));
-
-    // if one output of gf is not x, while the corresponding output of rf is x, then gf is not compatible equivalent to rf
-    clause.push(Glucose::mkLit(mo));
-    clause.push(Glucose::mkLit(go + 1));
-    clause.push(Glucose::mkLit(ro + 1, 1));
-    S.addClause(clause);
-    clause.clear();
-
-    // if neither of the outputs of gf and rf is x, standard xor logic is adopted
-    clause.push(Glucose::mkLit(mo));
-    clause.push(Glucose::mkLit(go + 1));
-    clause.push(Glucose::mkLit(ro + 1));  
-    clause.push(Glucose::mkLit(go, 1));
-    clause.push(Glucose::mkLit(ro));
-    S.addClause(clause);
-    clause.clear();
-    
-    clause.push(Glucose::mkLit(mo));
-    clause.push(Glucose::mkLit(go + 1));
-    clause.push(Glucose::mkLit(ro + 1));  
-    clause.push(Glucose::mkLit(go));
-    clause.push(Glucose::mkLit(ro, 1));
-    S.addClause(clause);
-    clause.clear();
-
-    clause.push(Glucose::mkLit(mo, 1));
-    clause.push(Glucose::mkLit(go + 1));
-    clause.push(Glucose::mkLit(ro + 1));  
-    clause.push(Glucose::mkLit(go));
-    clause.push(Glucose::mkLit(ro));
-    S.addClause(clause);
-    clause.clear();
-
-    clause.push(Glucose::mkLit(mo, 1));
-    clause.push(Glucose::mkLit(go + 1));
-    clause.push(Glucose::mkLit(ro + 1));  
-    clause.push(Glucose::mkLit(go, 1));
-    clause.push(Glucose::mkLit(ro, 1));
-    S.addClause(clause);
-    clause.clear();    
-  }
-  int o = S.newVar();
-  clause.push(Glucose::mkLit(o, 1));
-  for (int mo : mos) {
-    S.addClause(Glucose::mkLit(mo, 1), Glucose::mkLit(o));
-    clause.push(Glucose::mkLit(mo));
-  }
-  S.addClause(clause);
   clause.clear();
-  S.addClause(Glucose::mkLit(o));
+  for (int i = 0; i < gf.outputs.size(); i++) {
+    Glucose::Lit gl = Glucose::mkLit(gm[gf.outputs[i]]);
+    Glucose::Lit glx = Glucose::mkLit(gm[gf.outputs[i]] + 1);
+    Glucose::Lit rl = Glucose::mkLit(rm[rf.outputs[i]]);
+    Glucose::Lit rlx = Glucose::mkLit(rm[rf.outputs[i]] + 1);
+    Glucose::Lit neq_f = Glucose::mkLit(S.newVar());
+    Xor2(S, gl, rl, neq_f);
+    Glucose::Lit neq_ngx = Glucose::mkLit(S.newVar());
+    Or2(S, rlx, neq_f, neq_ngx);
+    Glucose::Lit neq = Glucose::mkLit(S.newVar());
+    And2(S, ~glx, neq_ngx, neq);
+    clause.push(neq);
+  }
+  Glucose::Lit o = Glucose::mkLit(S.newVar());
+  OrN(S, clause, o);
+  S.addClause(o);
 
   // solve the sat problem
   bool r = S.solve();
-  if (r)
+  if (r) {
     for (int i = 0; i < gf.inputs.size(); i++) { 
-      if(S.model[gm[gf.inputs[i]]] == l_True)
+      if(S.model[gm[gf.inputs[i]]] == l_True) {
 	result.push_back(1);
-      else
-	result.push_back(0);      
+      }
+      else {
+	result.push_back(0);
+      }
     }
+  }
 }
 
 void SatSolveNode(nodecircuit::Circuit &gf, nodecircuit::Node *gp, nodecircuit::Circuit &rf, nodecircuit::Node *rp, std::vector<bool> &result, bool fexact) {
