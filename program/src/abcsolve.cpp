@@ -1,3 +1,4 @@
+#include <iostream>
 #include <cassert>
 
 #include <base/abc/abc.h>
@@ -5,7 +6,7 @@
 
 #include "abcsolve.h"
 
-void AbcSolve(nodecircuit::Circuit &gf, nodecircuit::Circuit &rf, std::vector<bool> &result) {
+int AbcSolve(nodecircuit::Circuit &gf, nodecircuit::Circuit &rf, std::vector<bool> &result) {
   nodecircuit::Circuit miter;
   nodecircuit::Miter(gf, rf, miter);
   nodecircuit::NodeVector gates;
@@ -149,9 +150,14 @@ void AbcSolve(nodecircuit::Circuit &gf, nodecircuit::Circuit &rf, std::vector<bo
   Gia_ManStop(pTemp);
   Cec_ParCec_t ParsCec, *pPars = &ParsCec;
   Cec_ManCecSetDefaultParams(pPars);
-  pPars->nBTLimit = 0;
+  //pPars->nBTLimit = 0;
   //pPars->fSilent = 1;
   int r = Cec_ManVerify(pGia, pPars);
+  if(r == -1) {
+     std::cout << "undecided" << std::endl;
+    Gia_ManStop(pGia);
+    return 1;
+  }
   assert(r == 0 || r == 1);
   if(!r) {
     result.resize(Gia_ManCiNum(pGia));
@@ -162,4 +168,5 @@ void AbcSolve(nodecircuit::Circuit &gf, nodecircuit::Circuit &rf, std::vector<bo
     }
   }
   Gia_ManStop(pGia);
+  return 0;
 }
