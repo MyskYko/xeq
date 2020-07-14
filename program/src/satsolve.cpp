@@ -931,10 +931,17 @@ void SatSolveAll(nodecircuit::Circuit &f, std::vector<bool> &result) {
   }
   Ckt2Cnf2(gates, m, S);
   // outputs
-  for(auto p : f.outputs) {
-    clause.push(Glucose::mkLit(m[p]));
+  clause.clear();
+  for(int i = 0; i < f.outputs.size(); i++) {
+    auto p = f.outputs[i++];
+    auto q = f.outputs[i];
+    Glucose::Lit o = Glucose::mkLit(S.newVar());
+    Xor2(S, Glucose::mkLit(m[p]), Glucose::mkLit(m[q]), o);
+    clause.push(o);
   }
-  S.addClause(clause);
+  Glucose::Lit o = Glucose::mkLit(S.newVar());
+  OrN(S, clause, o);
+  S.addClause(o);
   // solve
   bool r = S.solve();
   if(r) {

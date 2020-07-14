@@ -362,40 +362,52 @@ namespace nodecircuit {
       m[p] = q;
     }
     // outputs
+    // check x compatibility (gx = 1 -> rx = 1)
     for(int i = 0; i < g.outputs.size(); i++) {
       std::string name = g.outputs[i]->name;
-      Node *pxor = miter.CreateNode("xeq_xor_" + name);
-      pxor->type = NODE_XOR;
-      pxor->inputs.push_back(m[g.outputs[i]]);
-      m[g.outputs[i]]->outputs.push_back(pxor);
-      pxor->inputs.push_back(m[r.outputs[i]]);
-      m[r.outputs[i]]->outputs.push_back(pxor);
-      Node *risx = miter.CreateNode("xeq_isx_r_" + name);
-      risx->type = NODE_ISX;
-      risx->inputs.push_back(m[r.outputs[i]]);
-      m[r.outputs[i]]->outputs.push_back(risx);
-      Node *por = miter.CreateNode("xeq_or_" + name);
-      por->type = NODE_OR;
-      por->inputs.push_back(pxor);
-      pxor->outputs.push_back(por);
-      por->inputs.push_back(risx);
-      risx->outputs.push_back(por);
       Node *gisx = miter.CreateNode("xeq_isx_g_" + name);
       gisx->type = NODE_ISX;
       gisx->inputs.push_back(m[g.outputs[i]]);
       m[g.outputs[i]]->outputs.push_back(gisx);
+      Node *risx = miter.CreateNode("xeq_isx_r_" + name);
+      risx->type = NODE_ISX;
+      risx->inputs.push_back(m[r.outputs[i]]);
+      m[r.outputs[i]]->outputs.push_back(risx);
+      Node *bothx = miter.CreateNode("xeq_bothx_" + name);
+      bothx->type = NODE_AND;
+      bothx->inputs.push_back(gisx);
+      gisx->outputs.push_back(bothx);
+      bothx->inputs.push_back(risx);
+      risx->outputs.push_back(bothx);
+      bothx->is_output = true;
+      miter.outputs.push_back(bothx);
+      risx->is_output = true;
+      miter.outputs.push_back(risx);
+    }
+    // xor equivalence
+    for(int i = 0; i < g.outputs.size(); i++) {
+      std::string name = g.outputs[i]->name;
+      Node *gisx = miter.GetNode("xeq_isx_g_" + name);
       Node *gisnx = miter.CreateNode("xeq_isnx_g_" + name);
       gisnx->type = NODE_NOT;
       gisnx->inputs.push_back(gisx);
       gisx->outputs.push_back(gisnx);
-      Node *neq = miter.CreateNode("xeq_neq_" + name);
-      neq->type = NODE_AND;
-      neq->inputs.push_back(por);
-      por->outputs.push_back(neq);
-      neq->inputs.push_back(gisnx);
-      gisnx->outputs.push_back(neq);
-      neq->is_output = true;
-      miter.outputs.push_back(neq);
+      Node *gand = miter.CreateNode("xeq_and_g_" + name);
+      gand->type = NODE_AND;
+      gand->inputs.push_back(gisnx);
+      gisnx->outputs.push_back(gand);
+      gand->inputs.push_back(m[g.outputs[i]]);
+      m[g.outputs[i]]->outputs.push_back(gand);
+      Node *rand = miter.CreateNode("xeq_and_r_" + name);
+      rand->type = NODE_AND;
+      rand->inputs.push_back(gisnx);
+      gisnx->outputs.push_back(rand);
+      rand->inputs.push_back(m[r.outputs[i]]);
+      m[r.outputs[i]]->outputs.push_back(rand);
+      gand->is_output = true;
+      miter.outputs.push_back(gand);
+      rand->is_output = true;
+      miter.outputs.push_back(rand);
     }
   }
 }
