@@ -913,8 +913,14 @@ void SatSolve3(nodecircuit::Circuit &gf, nodecircuit::Circuit &rf, std::vector<b
   }
 }
 
-void SatSolveAll(nodecircuit::Circuit &f, std::vector<bool> &result) {
+int SatSolve4(nodecircuit::Circuit &gf, nodecircuit::Circuit &rf, std::vector<bool> &result) {
+  // create miter circuit
+  nodecircuit::Circuit f;
+  nodecircuit::Miter(gf, rf, f);
+  // prepare sat solver and node2index map
   Glucose::SimpSolver S;
+  //S.setIncrementalMode();
+  //S.setConfBudget(1000);
   Glucose::vec<Glucose::Lit> clause;
   std::map<nodecircuit::Node *, int> m;
   // inputs
@@ -930,21 +936,36 @@ void SatSolveAll(nodecircuit::Circuit &f, std::vector<bool> &result) {
     S.newVar();
   }
   Ckt2Cnf2(gates, m, S);
-  // outputs
-  clause.clear();
-  for(int i = 0; i < f.outputs.size(); i++) {
-    auto p = f.outputs[i++];
-    auto q = f.outputs[i];
-    Glucose::Lit o = Glucose::mkLit(S.newVar());
-    Xor2(S, Glucose::mkLit(m[p]), Glucose::mkLit(m[q]), o);
-    clause.push(o);
-  }
-  Glucose::Lit o = Glucose::mkLit(S.newVar());
-  OrN(S, clause, o);
-  S.addClause(o);
   // solve
-  bool r = S.solve();
-  if(r) {
+  Glucose::lbool r;
+  int undecided = 0;
+  for(int i = 0; i < f.outputs.size(); i++) {
+    Glucose::Lit go = Glucose::mkLit(m[f.outputs[i++]]);
+    Glucose::Lit ro = Glucose::mkLit(m[f.outputs[i]]);
+    clause.clear();
+    clause.push(~go);
+    clause.push(ro);
+    r = S.solveLimited(clause, 0);
+    if(r == l_True) {
+      break;
+    }
+    else if(r != l_False) {
+      std::cout << "undecided" << std::endl;
+      undecided++;
+    }
+    clause.clear();
+    clause.push(go);
+    clause.push(~ro);
+    r = S.solveLimited(clause, 0);
+    if(r == l_True) {
+      break;
+    }
+    else if(r != l_False) {
+      std::cout << "undecided" << std::endl;
+      undecided++;
+    }
+  }
+  if(r == l_True) {
     for (int i = 0; i < f.inputs.size(); i++) { 
       if(S.model[2 * i] == l_True) {
 	result.push_back(1);
@@ -953,6 +974,38 @@ void SatSolveAll(nodecircuit::Circuit &f, std::vector<bool> &result) {
 	result.push_back(0);
       }
     }
+  }
+  if(undecided) {
+    return 1;
+  }
+  return 0;
+  
+  { // all at once procedure
+    // outputs
+    clause.clear();
+    for(int i = 0; i < f.outputs.size(); i++) {
+      auto p = f.outputs[i++];
+      auto q = f.outputs[i];
+      Glucose::Lit o = Glucose::mkLit(S.newVar());
+      Xor2(S, Glucose::mkLit(m[p]), Glucose::mkLit(m[q]), o);
+      clause.push(o);
+    }
+    Glucose::Lit o = Glucose::mkLit(S.newVar());
+    OrN(S, clause, o);
+    S.addClause(o);
+    // solve
+    bool r = S.solve();
+    if(r) {
+      for (int i = 0; i < f.inputs.size(); i++) { 
+	if(S.model[2 * i] == l_True) {
+	  result.push_back(1);
+	}
+	else {
+	  result.push_back(0);
+	}
+      }
+    }
+    return 0;
   }
 }
 
