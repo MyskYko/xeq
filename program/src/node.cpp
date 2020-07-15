@@ -167,19 +167,15 @@ namespace nodecircuit {
   }
   
   void Circuit::GetGates(NodeVector &gates) const {
-    gates.clear();
     Unmark();
     for(auto p : outputs) {
       GetGatesRec(p, gates);
     }
-    Unmark();
   }
   
   void Circuit::GetGates(NodeVector &gates, Node *p) const {
-    gates.clear();
     Unmark();
     GetGatesRec(p, gates);
-    Unmark();
   }
 
   void Circuit::Simulate(std::vector<int> const &pat, std::vector<int> &fs, std::vector<int> &gs, std::map<Node *, int> *fp,  std::map<Node *, int> *gp) {
@@ -341,8 +337,8 @@ namespace nodecircuit {
       }
       m[p] = q;
     }
-    gates.clear();
     // gates in r
+    gates.clear();
     r.GetGates(gates);
     for(Node *p : gates) {
       Node *q;
