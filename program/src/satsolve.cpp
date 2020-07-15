@@ -862,7 +862,7 @@ void SatSolve3(nodecircuit::Circuit &gf, nodecircuit::Circuit &rf, std::vector<b
   }
 }
 
-int SatSolve4(nodecircuit::Circuit &gf, nodecircuit::Circuit &rf, std::vector<bool> &result) {
+int SatSolve4(nodecircuit::Circuit &gf, nodecircuit::Circuit &rf, std::vector<bool> &result, bool fEach) {
   // create miter circuit
   nodecircuit::Circuit f;
   nodecircuit::Miter(gf, rf, f);
@@ -880,56 +880,15 @@ int SatSolve4(nodecircuit::Circuit &gf, nodecircuit::Circuit &rf, std::vector<bo
   // gates
   nodecircuit::NodeVector gates;
   f.GetGates(gates);
-  for (int i = 0; i < gates.size(); i++) {
+  for(int i = 0; i < gates.size(); i++) {
     m[gates[i]] = S.newVar();
     S.newVar();
   }
   Ckt2Cnf2(gates, m, S);
   // solve
-  Glucose::lbool r;
+  bool r = 0;
   int undecided = 0;
-  for(int i = 0; i < f.outputs.size(); i++) {
-    Glucose::Lit go = Glucose::mkLit(m[f.outputs[i++]]);
-    Glucose::Lit ro = Glucose::mkLit(m[f.outputs[i]]);
-    clause.clear();
-    clause.push(~go);
-    clause.push(ro);
-    r = S.solveLimited(clause, 0);
-    if(r == l_True) {
-      break;
-    }
-    else if(r != l_False) {
-      std::cout << "undecided" << std::endl;
-      undecided++;
-    }
-    clause.clear();
-    clause.push(go);
-    clause.push(~ro);
-    r = S.solveLimited(clause, 0);
-    if(r == l_True) {
-      break;
-    }
-    else if(r != l_False) {
-      std::cout << "undecided" << std::endl;
-      undecided++;
-    }
-  }
-  if(r == l_True) {
-    for (int i = 0; i < f.inputs.size(); i++) { 
-      if(S.model[2 * i] == l_True) {
-	result.push_back(1);
-      }
-      else {
-	result.push_back(0);
-      }
-    }
-  }
-  if(undecided) {
-    return 1;
-  }
-  return 0;
-  
-  { // all at once procedure
+  if(!fEach) {
     // outputs
     clause.clear();
     for(int i = 0; i < f.outputs.size(); i++) {
@@ -939,23 +898,52 @@ int SatSolve4(nodecircuit::Circuit &gf, nodecircuit::Circuit &rf, std::vector<bo
       Xor2(S, Glucose::mkLit(m[p]), Glucose::mkLit(m[q]), o);
       clause.push(o);
     }
-    Glucose::Lit o = Glucose::mkLit(S.newVar());
-    OrN(S, clause, o);
-    S.addClause(o);
-    // solve
-    bool r = S.solve();
-    if(r) {
-      for (int i = 0; i < f.inputs.size(); i++) { 
-	if(S.model[2 * i] == l_True) {
-	  result.push_back(1);
-	}
-	else {
-	  result.push_back(0);
-	}
+    S.addClause(clause);
+    r = S.solve();
+  }
+  else {
+    Glucose::lbool res;
+    for(int i = 0; i < f.outputs.size(); i++) {
+      Glucose::Lit go = Glucose::mkLit(m[f.outputs[i++]]);
+      Glucose::Lit ro = Glucose::mkLit(m[f.outputs[i]]);
+      clause.clear();
+      clause.push(~go);
+      clause.push(ro);
+      res = S.solveLimited(clause, 0);
+      if(res == l_True) {
+	r = 1;
+	break;
+      }
+      else if(res != l_False) {
+	std::cout << "undecided" << std::endl;
+	undecided++;
+      }
+      clause.clear();
+      clause.push(go);
+      clause.push(~ro);
+      res = S.solveLimited(clause, 0);
+      if(res == l_True) {
+	r = 1;
+	break;
+      }
+      else if(res != l_False) {
+	std::cout << "undecided" << std::endl;
+	undecided++;
+      }
+    }
+  }
+  if(r) {
+    for(auto p : f.inputs) {
+      if(S.model[m[p]] == l_True) {
+	result.push_back(1);
+      }
+      else {
+	result.push_back(0);
       }
     }
     return 0;
   }
+  return undecided;
 }
 
 
