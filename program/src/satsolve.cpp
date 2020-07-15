@@ -433,50 +433,6 @@ void AddMiterOutput(std::vector<int> &outputs, Glucose::SimpSolver &S) {
   S.addClause(os);
 }
 
-void SatSolve(nodecircuit::Circuit &gf, nodecircuit::Circuit &rf, std::vector<bool> &result) {
-  Glucose::SimpSolver S;
-  Glucose::vec<Glucose::Lit> clause;
-
-  std::map<nodecircuit::Node *, int> m;
-  
-  // inputs
-  for (int i = 0; i < gf.inputs.size(); i++) {
-    m[gf.inputs[i]] = m[rf.inputs[i]] = S.newVar();
-    S.addClause(Glucose::mkLit(S.newVar(), 1));
-  }
-  
-  // gates
-  nodecircuit::NodeVector gates;
-  gf.GetGates(gates);
-  rf.GetGates(gates);
-  for (int i = 0; i < gates.size(); i++) {
-    m[gates[i]] = S.newVar();
-    S.newVar();
-  }
-  Ckt2Cnf(gates, m, S);
-  
-  // outputs
-  std::vector<int> outputs;
-  for (int i = 0; i < gf.outputs.size(); i++) {
-    outputs.push_back(m[gf.outputs[i]]);
-    outputs.push_back(m[rf.outputs[i]]);
-  }
-  AddMiterOutput(outputs, S);
-  
-  // solve the sat problem
-  bool r = S.solve();
-  if (r) {
-    for (auto p: gf.inputs) { 
-      if(S.model[m[p]] == l_True) {
-	result.push_back(1);
-      }
-      else {
-	result.push_back(0);
-      }
-    }
-  }
-}
-
 void Buf(Glucose::SimpSolver &S, Glucose::Lit a, Glucose::Lit b) {
   S.addClause(~a, b);
   S.addClause(a, ~b);
@@ -762,18 +718,34 @@ void Ckt2Cnf2(nodecircuit::NodeVector const &gates, std::map<nodecircuit::Node *
   }
 }
 
-void SatSolve2(nodecircuit::Circuit &gf, nodecircuit::Circuit &rf, std::vector<bool> &result) {
+void AddMiterOutput2(std::vector<int> &outputs, Glucose::SimpSolver &S) {
+  Glucose::vec<Glucose::Lit> os;
+  for (int i = 0; i < outputs.size(); i++) {
+    Glucose::Lit go = Glucose::mkLit(outputs[i]);
+    Glucose::Lit gox = Glucose::mkLit(outputs[i] + 1);
+    i++;
+    Glucose::Lit ro = Glucose::mkLit(outputs[i]);
+    Glucose::Lit rox = Glucose::mkLit(outputs[i] + 1);
+    Glucose::Lit neq_f = Glucose::mkLit(S.newVar());
+    Xor2(S, go, ro, neq_f);
+    Glucose::Lit neq_ngx = Glucose::mkLit(S.newVar());
+    Or2(S, rox, neq_f, neq_ngx);
+    Glucose::Lit neq = Glucose::mkLit(S.newVar());
+    And2(S, ~gox, neq_ngx, neq);
+    os.push(neq);
+  }
+  S.addClause(os);
+}
+
+void SatSolve(nodecircuit::Circuit &gf, nodecircuit::Circuit &rf, std::vector<bool> &result, bool fTwo) {
   Glucose::SimpSolver S;
   Glucose::vec<Glucose::Lit> clause;
-
   std::map<nodecircuit::Node *, int> m;
-  
   // inputs
   for (int i = 0; i < gf.inputs.size(); i++) {
     m[gf.inputs[i]] = m[rf.inputs[i]] = S.newVar();
     S.addClause(Glucose::mkLit(S.newVar(), 1));
   }
-  
   // gates
   nodecircuit::NodeVector gates;
   gf.GetGates(gates);
@@ -782,32 +754,29 @@ void SatSolve2(nodecircuit::Circuit &gf, nodecircuit::Circuit &rf, std::vector<b
     m[gates[i]] = S.newVar();
     S.newVar();
   }
-  Ckt2Cnf2(gates, m, S);
-
-  // miter outputs of the two circuits
-  clause.clear();
-  for (int i = 0; i < gf.outputs.size(); i++) {
-    Glucose::Lit gl = Glucose::mkLit(m[gf.outputs[i]]);
-    Glucose::Lit glx = Glucose::mkLit(m[gf.outputs[i]] + 1);
-    Glucose::Lit rl = Glucose::mkLit(m[rf.outputs[i]]);
-    Glucose::Lit rlx = Glucose::mkLit(m[rf.outputs[i]] + 1);
-    Glucose::Lit neq_f = Glucose::mkLit(S.newVar());
-    Xor2(S, gl, rl, neq_f);
-    Glucose::Lit neq_ngx = Glucose::mkLit(S.newVar());
-    Or2(S, rlx, neq_f, neq_ngx);
-    Glucose::Lit neq = Glucose::mkLit(S.newVar());
-    And2(S, ~glx, neq_ngx, neq);
-    clause.push(neq);
+  if (!fTwo) {
+    Ckt2Cnf(gates, m, S);
   }
-  Glucose::Lit o = Glucose::mkLit(S.newVar());
-  OrN(S, clause, o);
-  S.addClause(o);
-
-  // solve the sat problem
+  else {
+    Ckt2Cnf2(gates, m, S);
+  }
+  // outputs
+  std::vector<int> outputs;
+  for (int i = 0; i < gf.outputs.size(); i++) {
+    outputs.push_back(m[gf.outputs[i]]);
+    outputs.push_back(m[rf.outputs[i]]);
+  }
+  if (!fTwo) {
+    AddMiterOutput(outputs, S);
+  }
+  else {
+    AddMiterOutput2(outputs, S);
+  }
+  // solve
   bool r = S.solve();
   if (r) {
-    for (int i = 0; i < gf.inputs.size(); i++) { 
-      if(S.model[m[gf.inputs[i]]] == l_True) {
+    for (auto p: gf.inputs) {
+      if (S.model[m[p]] == l_True) {
 	result.push_back(1);
       }
       else {
