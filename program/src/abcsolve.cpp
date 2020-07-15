@@ -8,7 +8,7 @@
 
 #include "abcsolve.h"
 
-int AbcSolve(nodecircuit::Circuit &gf, nodecircuit::Circuit &rf, std::vector<bool> &result) {
+int AbcSolve(nodecircuit::Circuit &gf, nodecircuit::Circuit &rf, std::vector<bool> &result, bool fzero) {
   nodecircuit::Circuit miter;
   nodecircuit::Miter(gf, rf, miter);
   nodecircuit::NodeVector gates;
@@ -49,6 +49,9 @@ int AbcSolve(nodecircuit::Circuit &gf, nodecircuit::Circuit &rf, std::vector<boo
     case nodecircuit::NODE_NOT:
       f[p] = Abc_LitNot(f[p->inputs[0]]);
       g[p] = g[p->inputs[0]];
+      if(fzero) {
+	f[p] = Gia_ManHashAnd(pGia, f[p], Abc_LitNot(g[p]));
+      }
       break;
     case nodecircuit::NODE_AND:
       f[p] = Gia_ManConst1Lit();
@@ -60,6 +63,9 @@ int AbcSolve(nodecircuit::Circuit &gf, nodecircuit::Circuit &rf, std::vector<boo
 					   Gia_ManHashAnd(pGia, f[q], g[p])),
 			     Gia_ManHashAnd(pGia, g[p], g[q]));
 	f[p] = Gia_ManHashAnd(pGia, f[p], f[q]);
+      }
+      if(fzero) {
+	f[p] = Gia_ManHashAnd(pGia, f[p], Abc_LitNot(g[p]));
       }
       break;
     case nodecircuit::NODE_NAND:
@@ -74,6 +80,9 @@ int AbcSolve(nodecircuit::Circuit &gf, nodecircuit::Circuit &rf, std::vector<boo
 	f[p] = Gia_ManHashAnd(pGia, f[p], f[q]);
       }
       f[p] = Abc_LitNot(f[p]);
+      if(fzero) {
+	f[p] = Gia_ManHashAnd(pGia, f[p], Abc_LitNot(g[p]));
+      }
       break;
     case nodecircuit::NODE_OR:
       f[p] = Gia_ManConst0Lit();
@@ -85,6 +94,9 @@ int AbcSolve(nodecircuit::Circuit &gf, nodecircuit::Circuit &rf, std::vector<boo
 					   Gia_ManHashAnd(pGia, Abc_LitNot(f[q]), g[p])),
 			     Gia_ManHashAnd(pGia, g[p], g[q]));
 	f[p] = Gia_ManHashOr(pGia, f[p], f[q]);
+      }
+      if(fzero) {
+	f[p] = Gia_ManHashAnd(pGia, f[p], Abc_LitNot(g[p]));
       }
       break;
     case nodecircuit::NODE_NOR:
@@ -99,6 +111,9 @@ int AbcSolve(nodecircuit::Circuit &gf, nodecircuit::Circuit &rf, std::vector<boo
 	f[p] = Gia_ManHashOr(pGia, f[p], f[q]);
       }
       f[p] = Abc_LitNot(f[p]);
+      if(fzero) {
+	f[p] = Gia_ManHashAnd(pGia, f[p], Abc_LitNot(g[p]));
+      }
       break;
     case nodecircuit::NODE_XOR:
       f[p] = Gia_ManConst0Lit();
@@ -106,6 +121,9 @@ int AbcSolve(nodecircuit::Circuit &gf, nodecircuit::Circuit &rf, std::vector<boo
       for(auto q : p->inputs) {
 	f[p] = Gia_ManHashXor(pGia, f[p], f[q]);
 	g[p] = Gia_ManHashOr(pGia, g[p], g[q]);
+      }
+      if(fzero) {
+	f[p] = Gia_ManHashAnd(pGia, f[p], Abc_LitNot(g[p]));
       }
       break;
     case nodecircuit::NODE_XNOR:
@@ -116,12 +134,18 @@ int AbcSolve(nodecircuit::Circuit &gf, nodecircuit::Circuit &rf, std::vector<boo
 	g[p] = Gia_ManHashOr(pGia, g[p], g[q]);
       }
       f[p] = Abc_LitNot(f[p]);
+      if(fzero) {
+	f[p] = Gia_ManHashAnd(pGia, f[p], Abc_LitNot(g[p]));
+      }
       break;
     case nodecircuit::NODE_DC:
       f[p] = f[p->inputs[0]];
       g[p] = Gia_ManHashOr(pGia,
 			   Gia_ManHashOr(pGia, g[p->inputs[0]], f[p->inputs[1]]),
 			   g[p->inputs[1]]);
+      if(fzero) {
+	f[p] = Gia_ManHashAnd(pGia, f[p], Abc_LitNot(g[p]));
+      }
       break;
     case nodecircuit::NODE_MUX:
       // Xthen=1, Yelse=0, C=2
@@ -133,6 +157,9 @@ int AbcSolve(nodecircuit::Circuit &gf, nodecircuit::Circuit &rf, std::vector<boo
 					  Gia_ManHashOr(pGia,
 							Gia_ManHashOr(pGia, g[p->inputs[1]], g[p->inputs[0]]),
 							Gia_ManHashXor(pGia, f[p->inputs[1]], f[p->inputs[0]]))));
+      if(fzero) {
+	f[p] = Gia_ManHashAnd(pGia, f[p], Abc_LitNot(g[p]));
+      }
       break;
     case nodecircuit::NODE_ISX:
       f[p] = g[p->inputs[0]];
