@@ -2,6 +2,8 @@
 #include <cassert>
 
 #include <base/abc/abc.h>
+#include <aig/aig/aig.h>
+#include <opt/dar/dar.h>
 #include <proof/cec/cec.h>
 
 #include "abcsolve.h"
@@ -152,9 +154,12 @@ int AbcSolve(nodecircuit::Circuit &gf, nodecircuit::Circuit &rf, std::vector<boo
   Cec_ManCecSetDefaultParams(pPars);
   //pPars->nBTLimit = 0;
   //pPars->fSilent = 1;
+  //pPars->TimeLimit = 90;
+  //pPars->fVerbose = 1;
+  Dar_LibStart();
   int r = Cec_ManVerify(pGia, pPars);
   if(r == -1) {
-     std::cout << "undecided" << std::endl;
+    std::cout << "undecided" << std::endl;
     Gia_ManStop(pGia);
     return 1;
   }
