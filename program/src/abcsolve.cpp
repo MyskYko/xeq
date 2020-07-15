@@ -1,4 +1,5 @@
 #include <iostream>
+#include <string>
 #include <cassert>
 
 #include <base/abc/abc.h>
@@ -8,17 +9,15 @@
 
 #include "abcsolve.h"
 
-int AbcSolve(nodecircuit::Circuit &gf, nodecircuit::Circuit &rf, std::vector<bool> &result, bool fzero) {
-  nodecircuit::Circuit miter;
-  nodecircuit::Miter(gf, rf, miter);
+Gia_Man_t *Ckt2Gia(nodecircuit::Circuit &ckt, bool fzero) {
+  Gia_Man_t *pGia, *pTemp;
   nodecircuit::NodeVector gates;
-  miter.GetGates(gates);
-  Gia_Man_t *pTemp;
-  Gia_Man_t *pGia = Gia_ManStart(gates.size());
+  ckt.GetGates(gates);
+  pGia = Gia_ManStart(gates.size());
   Gia_ManHashStart(pGia);
   std::map<nodecircuit::Node *, int> f, g;
   // inputs
-  for(auto p : miter.inputs) {
+  for(auto p : ckt.inputs) {
     f[p] = Gia_ManAppendCi(pGia);
     g[p] = Gia_ManConst0Lit();
   }
@@ -171,12 +170,19 @@ int AbcSolve(nodecircuit::Circuit &gf, nodecircuit::Circuit &rf, std::vector<boo
     }
   }
   // outputs
-  for(auto p : miter.outputs) {
+  for(auto p : ckt.outputs) {
     Gia_ManAppendCo(pGia, f[p]);
   }
   Gia_ManHashStop(pGia);
   pGia = Gia_ManCleanup(pTemp = pGia);
   Gia_ManStop(pTemp);
+  return pGia;
+}
+
+int AbcSolve(nodecircuit::Circuit &gf, nodecircuit::Circuit &rf, std::vector<bool> &result, bool fzero) {
+  nodecircuit::Circuit miter;
+  nodecircuit::Miter(gf, rf, miter);
+  Gia_Man_t *pGia = Ckt2Gia(miter, fzero);
   Cec_ParCec_t ParsCec, *pPars = &ParsCec;
   Cec_ManCecSetDefaultParams(pPars);
   //pPars->nBTLimit = 0;
@@ -201,4 +207,14 @@ int AbcSolve(nodecircuit::Circuit &gf, nodecircuit::Circuit &rf, std::vector<boo
   }
   Gia_ManStop(pGia);
   return 0;
+}
+
+void DumpMiterAiger(nodecircuit::Circuit &gf, nodecircuit::Circuit &rf, std::string filename, bool fzero) {
+  nodecircuit::Circuit miter;
+  nodecircuit::Miter(gf, rf, miter);
+  Gia_Man_t *pGia = Ckt2Gia(miter, fzero);
+  char cstr[filename.size() + 1];
+  strcpy(cstr, filename.c_str());
+  Gia_AigerWrite(pGia, cstr, 0, 0, 0);
+  Gia_ManStop(pGia);
 }
