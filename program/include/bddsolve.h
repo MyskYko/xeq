@@ -46,20 +46,30 @@ void Build(nodecircuit::NodeVector const &gates, Bdd::BddMan<node> &bdd, std::ma
       f[p] = bdd.Const1();
       g[p] = bdd.Const0();
       for(auto q : p->inputs) {
-	g[p] = bdd.Or(bdd.Or(bdd.And(f[p], g[q]),
-			     bdd.And(f[q], g[p])),
-		      bdd.And(g[p], g[q]));
+	node x = bdd.And(g[p], g[q]);
+	if(x != bdd.Const1()) {
+	  x = bdd.Or(x, bdd.And(f[p], g[q]));
+	}
+	if(x != bdd.Const1()) {
+	  x = bdd.Or(x, bdd.And(f[q], g[p]));
+	}
 	f[p] = bdd.And(f[p], f[q]);
+	g[p] = x;
       }
       break;
     case nodecircuit::NODE_NAND:
       f[p] = bdd.Const1();
       g[p] = bdd.Const0();
       for(auto q : p->inputs) {
-	g[p] = bdd.Or(bdd.Or(bdd.And(f[p], g[q]),
-			     bdd.And(f[q], g[p])),
-		      bdd.And(g[p], g[q]));
+	node x = bdd.And(g[p], g[q]);
+	if(x != bdd.Const1()) {
+	  x = bdd.Or(x, bdd.And(f[p], g[q]));
+	}
+	if(x != bdd.Const1()) {
+	  x = bdd.Or(x, bdd.And(f[q], g[p]));
+	}
 	f[p] = bdd.And(f[p], f[q]);
+	g[p] = x;
       }
       f[p] = bdd.Not(f[p]);
       break;
@@ -67,20 +77,30 @@ void Build(nodecircuit::NodeVector const &gates, Bdd::BddMan<node> &bdd, std::ma
       f[p] = bdd.Const0();
       g[p] = bdd.Const0();
       for(auto q : p->inputs) {
-	g[p] = bdd.Or(bdd.Or(bdd.And(bdd.Not(f[p]), g[q]),
-			     bdd.And(bdd.Not(f[q]), g[p])),
-		      bdd.And(g[p], g[q]));
+	node x = bdd.And(g[p], g[q]);
+	if(x != bdd.Const1()) {
+	  x = bdd.Or(x, bdd.And(bdd.Not(f[p]), g[q]));
+	}
+	if(x != bdd.Const1()) {
+	  x = bdd.Or(x, bdd.And(bdd.Not(f[q]), g[p]));
+	}
 	f[p] = bdd.Or(f[p], f[q]);
+	g[p] = x;
       }
       break;
     case nodecircuit::NODE_NOR:
       f[p] = bdd.Const0();
       g[p] = bdd.Const0();
       for(auto q : p->inputs) {
-	g[p] = bdd.Or(bdd.Or(bdd.And(bdd.Not(f[p]), g[q]),
-			     bdd.And(bdd.Not(f[q]), g[p])),
-		      bdd.And(g[p], g[q]));
+	node x = bdd.And(g[p], g[q]);
+	if(x != bdd.Const1()) {
+	  x = bdd.Or(x, bdd.And(bdd.Not(f[p]), g[q]));
+	}
+	if(x != bdd.Const1()) {
+	  x = bdd.Or(x, bdd.And(bdd.Not(f[q]), g[p]));
+	}
 	f[p] = bdd.Or(f[p], f[q]);
+	g[p] = x;
       }
       f[p] = bdd.Not(f[p]);
       break;
@@ -103,21 +123,22 @@ void Build(nodecircuit::NodeVector const &gates, Bdd::BddMan<node> &bdd, std::ma
       break;
     case nodecircuit::NODE_DC:
       f[p] = f[p->inputs[0]];
-      g[p] = bdd.Or(bdd.Or(g[p->inputs[0]],
-			   f[p->inputs[1]]),
-		    g[p->inputs[1]]);
+      g[p] = bdd.Or(g[p->inputs[0]], g[p->inputs[1]]);
+      if(g[p] != bdd.Const1()) {
+	g[p] = bdd.Or(g[p], f[p->inputs[1]]);
+      }
       break;
     case nodecircuit::NODE_MUX:
       // Xthen=1, Yelse=0, C=2
       f[p] = bdd.Ite(f[p->inputs[2]], f[p->inputs[1]], f[p->inputs[0]]);
-      g[p] = bdd.Or(bdd.Ite(f[p->inputs[2]],
-			    g[p->inputs[1]],
-			    g[p->inputs[0]]),
-		    bdd.And(g[p->inputs[2]],
-			    bdd.Or(bdd.Or(g[p->inputs[1]],
-					  g[p->inputs[0]]),
-				   bdd.Xor(f[p->inputs[1]],
-					   f[p->inputs[0]]))));
+      g[p] = bdd.Ite(f[p->inputs[2]], g[p->inputs[1]], g[p->inputs[0]]);
+      if(g[p] != bdd.Const1() && g[p->inputs[2]] != bdd.Const0()) {
+	node x = bdd.Or(g[p->inputs[1]], g[p->inputs[0]]);
+	if(x != bdd.Const1()) {
+	  x = bdd.Or(x, bdd.Xor(f[p->inputs[1]], f[p->inputs[0]]));
+	}
+	g[p] = bdd.Or(g[p], bdd.And(x, g[p->inputs[2]]));
+      }
       break;
     default:
       throw "unkown gate type";
