@@ -6,6 +6,8 @@
 #include <aig/aig/aig.h>
 #include <opt/dar/dar.h>
 #include <proof/cec/cec.h>
+#include <base/main/main.h>
+#include <base/main/mainInt.h>
 
 #include "abcsolve.h"
 
@@ -217,4 +219,34 @@ void DumpMiterAiger(nodecircuit::Circuit &gf, nodecircuit::Circuit &rf, std::str
   strcpy(cstr, filename.c_str());
   Gia_AigerWrite(pGia, cstr, 0, 0, 0);
   Gia_ManStop(pGia);
+}
+
+void AbcSolveBdd(nodecircuit::Circuit &gf, nodecircuit::Circuit &rf, std::vector<bool> &result) {
+  nodecircuit::Circuit miter;
+  nodecircuit::Miter(gf, rf, miter);
+  Gia_Man_t *pGia = Ckt2Gia(miter, 0);
+  Abc_Frame_t *pAbc = Abc_FrameGetGlobalFrame();
+  pAbc->pGia = pGia;
+  std::string command = "&put; miter -t; if -K 6 -m; order; collapse -rv; strash; orpos";
+  Cmd_CommandExecute(pAbc, command.c_str());
+  Abc_Ntk_t *pNtk = Abc_FrameReadNtk(pAbc);
+  int r = Abc_NtkMiterSat( pNtk, 0, 0, 0, NULL, NULL );
+  if(r == -1) {
+    std::cout << "undecided" << std::endl;
+    return;
+  }
+  assert(r == 0 || r == 1);
+  if(!r) {
+    result.resize(Abc_NtkCiNum(pNtk));
+    int i;
+    Abc_Obj_t *pCi;
+    Abc_NtkForEachCi(pNtk, pCi, i) {
+      if(pNtk->pModel[i]) {
+	std::string name(Abc_ObjName(pCi));
+	name = name.substr(2);
+	int j = std::stoi(name);
+	result[j] = 1;
+      }
+    }
+  }
 }
