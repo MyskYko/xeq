@@ -375,6 +375,64 @@ void Ckt2Cnf(nodecircuit::NodeVector const &gates, std::map<nodecircuit::Node *,
   }            
 }
 
+void AddMiterOutput(std::vector<int> &outputs, Glucose::SimpSolver &S) {
+  Glucose::vec<Glucose::Lit> clause, os;
+  for (int i = 0; i < outputs.size(); i++) {
+    Glucose::Lit go = Glucose::mkLit(outputs[i]);
+    Glucose::Lit gox = Glucose::mkLit(outputs[i] + 1);
+    i++;
+    Glucose::Lit ro = Glucose::mkLit(outputs[i]);
+    Glucose::Lit rox = Glucose::mkLit(outputs[i] + 1);
+    Glucose::Lit o = Glucose::mkLit(S.newVar());
+    os.push(o);
+    
+    // if one output of gf is x, that output is compatible equivalent to the corresponding output of rf
+    S.addClause(~o, ~gox);
+
+    // if one output of gf is not x, while the corresponding output of rf is x, then gf is not compatible equivalent to rf
+    clause.push(o);
+    clause.push(gox);
+    clause.push(~rox);
+    S.addClause(clause);
+    clause.clear();
+
+    // if neither of the outputs of gf nor rf is x, standard xor logic is adopted
+    clause.push(o);
+    clause.push(gox);
+    clause.push(rox);
+    clause.push(~go);
+    clause.push(ro);
+    S.addClause(clause);
+    clause.clear();
+    
+    clause.push(o);
+    clause.push(gox);
+    clause.push(rox);
+    clause.push(go);
+    clause.push(~ro);
+    S.addClause(clause);
+    clause.clear();
+
+    clause.push(~o);
+    clause.push(gox);
+    clause.push(rox);
+    clause.push(go);
+    clause.push(ro);
+    S.addClause(clause);
+    clause.clear();
+
+    clause.push(~o);
+    clause.push(gox);
+    clause.push(rox);
+    clause.push(~go);
+    clause.push(~ro);
+    S.addClause(clause);
+    clause.clear();    
+  }
+  // add or of all os
+  S.addClause(os);
+}
+
 void SatSolve(nodecircuit::Circuit &gf, nodecircuit::Circuit &rf, std::vector<bool> &result) {
   Glucose::SimpSolver S;
   Glucose::vec<Glucose::Lit> clause;
@@ -397,68 +455,14 @@ void SatSolve(nodecircuit::Circuit &gf, nodecircuit::Circuit &rf, std::vector<bo
   }
   Ckt2Cnf(gates, m, S);
   
-  // miter outputs of the two circuits
-  std::vector<int> neqs;
+  // outputs
+  std::vector<int> outputs;
   for (int i = 0; i < gf.outputs.size(); i++) {
-    int go = m[gf.outputs[i]];
-    int ro = m[rf.outputs[i]];
-    int neq = S.newVar();
-    neqs.push_back(neq);
-    
-    // if one output of gf is x, that output is compatible equivalent to the corresponding output of rf
-    S.addClause(Glucose::mkLit(neq, 1), Glucose::mkLit(go + 1, 1));
-
-    // if one output of gf is not x, while the corresponding output of rf is x, then gf is not compatible equivalent to rf
-    clause.push(Glucose::mkLit(neq));
-    clause.push(Glucose::mkLit(go + 1));
-    clause.push(Glucose::mkLit(ro + 1, 1));
-    S.addClause(clause);
-    clause.clear();
-
-    // if neither of the outputs of gf and rf is x, standard xor logic is adopted
-    clause.push(Glucose::mkLit(neq));
-    clause.push(Glucose::mkLit(go + 1));
-    clause.push(Glucose::mkLit(ro + 1));  
-    clause.push(Glucose::mkLit(go, 1));
-    clause.push(Glucose::mkLit(ro));
-    S.addClause(clause);
-    clause.clear();
-    
-    clause.push(Glucose::mkLit(neq));
-    clause.push(Glucose::mkLit(go + 1));
-    clause.push(Glucose::mkLit(ro + 1));  
-    clause.push(Glucose::mkLit(go));
-    clause.push(Glucose::mkLit(ro, 1));
-    S.addClause(clause);
-    clause.clear();
-
-    clause.push(Glucose::mkLit(neq, 1));
-    clause.push(Glucose::mkLit(go + 1));
-    clause.push(Glucose::mkLit(ro + 1));  
-    clause.push(Glucose::mkLit(go));
-    clause.push(Glucose::mkLit(ro));
-    S.addClause(clause);
-    clause.clear();
-
-    clause.push(Glucose::mkLit(neq, 1));
-    clause.push(Glucose::mkLit(go + 1));
-    clause.push(Glucose::mkLit(ro + 1));  
-    clause.push(Glucose::mkLit(go, 1));
-    clause.push(Glucose::mkLit(ro, 1));
-    S.addClause(clause);
-    clause.clear();    
+    outputs.push_back(m[gf.outputs[i]]);
+    outputs.push_back(m[rf.outputs[i]]);
   }
-
-  int o = S.newVar();
-  clause.push(Glucose::mkLit(o, 1));
-  for (int neq : neqs) {
-    S.addClause(Glucose::mkLit((neq), 1), Glucose::mkLit(o));
-    clause.push(Glucose::mkLit(neq));    
-  }
-  S.addClause(clause);
-  clause.clear();
-  S.addClause(Glucose::mkLit(o));
-
+  AddMiterOutput(outputs, S);
+  
   // solve the sat problem
   bool r = S.solve();
   if (r) {
