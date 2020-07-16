@@ -43,19 +43,15 @@ void Ckt2Cnf(nodecircuit::NodeVector const &gates, std::map<nodecircuit::Node *,
       }
       break;
     case nodecircuit::NODE_BUF:
-      assert(p->inputs.size() == 1);	
-      S.addClause(Glucose::mkLit(m.at(p->inputs[0]), 1), Glucose::mkLit(m.at(p)));	
-      S.addClause(Glucose::mkLit(m.at(p->inputs[0]) + 1, 1), Glucose::mkLit(m.at(p) + 1));
-      S.addClause(Glucose::mkLit(m.at(p->inputs[0])), Glucose::mkLit(m.at(p), 1));
-      S.addClause(Glucose::mkLit(m.at(p->inputs[0]) + 1), Glucose::mkLit(m.at(p) + 1, 1));
-      break;
     case nodecircuit::NODE_NOT:
-      assert(p->inputs.size() == 1);
-      S.addClause(Glucose::mkLit(m.at(p->inputs[0]), 1), Glucose::mkLit(m.at(p), 1));	
-      S.addClause(Glucose::mkLit(m.at(p->inputs[0]) + 1, 1), Glucose::mkLit(m.at(p) + 1));
-      S.addClause(Glucose::mkLit(m.at(p->inputs[0])), Glucose::mkLit(m.at(p)));
-      S.addClause(Glucose::mkLit(m.at(p->inputs[0]) + 1), Glucose::mkLit(m.at(p) + 1, 1));
-      break;
+      {
+	bool isNot = p->type == nodecircuit::NODE_NOT;
+	S.addClause(Glucose::mkLit(m.at(p->inputs[0]), 1), Glucose::mkLit(m.at(p), isNot));	
+	S.addClause(Glucose::mkLit(m.at(p->inputs[0])), Glucose::mkLit(m.at(p), !isNot));
+	S.addClause(Glucose::mkLit(m.at(p->inputs[0]) + 1, 1), Glucose::mkLit(m.at(p) + 1));
+	S.addClause(Glucose::mkLit(m.at(p->inputs[0]) + 1), Glucose::mkLit(m.at(p) + 1, 1));
+	break;
+      }
     case nodecircuit::NODE_AND:
     case nodecircuit::NODE_NAND:
     case nodecircuit::NODE_OR:
@@ -423,15 +419,13 @@ void Ckt2Cnf2(nodecircuit::NodeVector const &gates, std::map<nodecircuit::Node *
       }
       break;
     case nodecircuit::NODE_BUF:
-      assert(p->inputs.size() == 1);
-      Buf(S, Glucose::mkLit(m.at(p->inputs[0])), Glucose::mkLit(m.at(p)));
-      Buf(S, Glucose::mkLit(m.at(p->inputs[0]) + 1), Glucose::mkLit(m.at(p) + 1));
-      break;
     case nodecircuit::NODE_NOT:
-      assert(p->inputs.size() == 1);
-      Buf(S, Glucose::mkLit(m.at(p->inputs[0]), 1), Glucose::mkLit(m.at(p)));
-      Buf(S, Glucose::mkLit(m.at(p->inputs[0]) + 1), Glucose::mkLit(m.at(p) + 1));
-      break;
+      {
+	bool isNot = p->type == nodecircuit::NODE_NOT;
+	Buf(S, Glucose::mkLit(m.at(p->inputs[0]), isNot), Glucose::mkLit(m.at(p)));
+	Buf(S, Glucose::mkLit(m.at(p->inputs[0]) + 1), Glucose::mkLit(m.at(p) + 1));
+	break;
+      }
     case nodecircuit::NODE_AND:
     case nodecircuit::NODE_NAND:
     case nodecircuit::NODE_OR:
