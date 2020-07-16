@@ -993,7 +993,7 @@ void Ckt2Cnf3(nodecircuit::NodeVector const &gates, std::map<nodecircuit::Node *
   }
 }
 
-void SatSolve(nodecircuit::Circuit &gf, nodecircuit::Circuit &rf, std::vector<bool> &result, bool fTwo) {
+void SatSolve(nodecircuit::Circuit &gf, nodecircuit::Circuit &rf, std::vector<bool> &result, int gate_encoding, int out_encoding) {
   Glucose::SimpSolver S;
   Glucose::vec<Glucose::Lit> clause;
   std::map<nodecircuit::Node *, int> m;
@@ -1010,11 +1010,18 @@ void SatSolve(nodecircuit::Circuit &gf, nodecircuit::Circuit &rf, std::vector<bo
     m[gates[i]] = S.newVar();
     S.newVar();
   }
-  if (!fTwo) {
+  switch (gate_encoding) {
+  case 0:
     Ckt2Cnf(gates, m, S);
-  }
-  else {
+    break;
+  case 1:
     Ckt2Cnf2(gates, m, S);
+    break;
+  case 2:
+    Ckt2Cnf3(gates, m, S);
+    break;
+  default:
+    assert(0);
   }
   // outputs
   std::vector<int> outputs;
@@ -1022,11 +1029,15 @@ void SatSolve(nodecircuit::Circuit &gf, nodecircuit::Circuit &rf, std::vector<bo
     outputs.push_back(m[gf.outputs[i]]);
     outputs.push_back(m[rf.outputs[i]]);
   }
-  if (!fTwo) {
+  switch (out_encoding) {
+  case 0:
     AddMiterOutput(outputs, S);
-  }
-  else {
+    break;
+  case 1:
     AddMiterOutput2(outputs, S);
+    break;
+  default:
+    assert(0);
   }
   // solve
   bool r = S.solve();
@@ -1118,7 +1129,7 @@ void SatSolve3(nodecircuit::Circuit &gf, nodecircuit::Circuit &rf, std::vector<b
   }
 }
 
-int SatSolve4(nodecircuit::Circuit &gf, nodecircuit::Circuit &rf, std::vector<bool> &result, bool fEach) {
+int SatSolve4(nodecircuit::Circuit &gf, nodecircuit::Circuit &rf, std::vector<bool> &result, int gate_encoding, bool fEach) {
   // create miter circuit
   nodecircuit::Circuit f;
   nodecircuit::Miter(gf, rf, f);
@@ -1140,7 +1151,19 @@ int SatSolve4(nodecircuit::Circuit &gf, nodecircuit::Circuit &rf, std::vector<bo
     m[gates[i]] = S.newVar();
     S.newVar();
   }
-  Ckt2Cnf2(gates, m, S);
+  switch (gate_encoding) {
+  case 0:
+    Ckt2Cnf(gates, m, S);
+    break;
+  case 1:
+    Ckt2Cnf2(gates, m, S);
+    break;
+  case 2:
+    Ckt2Cnf3(gates, m, S);
+    break;
+  default:
+    assert(0);
+  }
   // solve
   bool r = 0;
   int undecided = 0;
