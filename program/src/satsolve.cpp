@@ -422,14 +422,14 @@ void Ckt2Cnf2(nodecircuit::NodeVector const &gates, std::map<nodecircuit::Node *
       {
         bool isOr = p->type == nodecircuit::NODE_OR || p->type == nodecircuit::NODE_NOR;
 	bool isNot = p->type == nodecircuit::NODE_NAND || p->type == nodecircuit::NODE_NOR;
-	Glucose::Lit in0 = Glucose::mkLit(m.at(p->inputs[0]));
+	Glucose::Lit in0 = Glucose::mkLit(m.at(p->inputs[0]), isOr);
 	Glucose::Lit in0x = Glucose::mkLit(m.at(p->inputs[0]) + 1);
 	for(int i = 1; i < p->inputs.size(); i++) {
-	  Glucose::Lit in1 = Glucose::mkLit(m.at(p->inputs[i]));
+	  Glucose::Lit in1 = Glucose::mkLit(m.at(p->inputs[i]), isOr);
 	  Glucose::Lit in1x = Glucose::mkLit(m.at(p->inputs[i]) + 1);
 	  Glucose::Lit out, outx;
 	  if(i == p->inputs.size() - 1) {
-	    out = Glucose::mkLit(m.at(p), isNot);
+	    out = Glucose::mkLit(m.at(p), isNot ^ isOr);
 	    outx = Glucose::mkLit(m.at(p) + 1);
 	  }
 	  else {
@@ -439,18 +439,10 @@ void Ckt2Cnf2(nodecircuit::NodeVector const &gates, std::map<nodecircuit::Node *
 	  Glucose::Lit t0 = Glucose::mkLit(S.newVar());
 	  Glucose::Lit t1 = Glucose::mkLit(S.newVar());
 	  Glucose::Lit t2 = Glucose::mkLit(S.newVar());
-	  if(isOr) {
-	    Or2(S, in0, in1, out);
-	    And2(S, in0x, in1x, t0);
-	    And2(S, ~in0, in1x, t1);
-	    And2(S, in0x, ~in1, t2);
-	  }
-	  else {
-	    And2(S, in0, in1, out);
-	    And2(S, in0x, in1x, t0);
-	    And2(S, in0, in1x, t1);
-	    And2(S, in0x, in1, t2);
-	  }
+	  And2(S, in0, in1, out);
+	  And2(S, in0x, in1x, t0);
+	  And2(S, in0, in1x, t1);
+	  And2(S, in0x, in1, t2);
 	  clause.clear();
 	  clause.push(t0);
 	  clause.push(t1);
