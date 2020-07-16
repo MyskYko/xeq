@@ -211,6 +211,40 @@ int AbcSolve(nodecircuit::Circuit &gf, nodecircuit::Circuit &rf, std::vector<boo
   return 0;
 }
 
+int AbcSolve2(nodecircuit::Circuit &gf, nodecircuit::Circuit &rf, std::vector<bool> &result, bool fzero) {
+  nodecircuit::Circuit miter;
+  nodecircuit::Miter(gf, rf, miter);
+  Gia_Man_t *pGia = Ckt2Gia(miter, fzero);
+  Abc_Frame_t *pAbc = Abc_FrameGetGlobalFrame();
+  pAbc->pGia = pGia;
+  //std::string command = "&demiter -f; cec miter_part0.aig miter_part1.aig";
+  //Cmd_CommandExecute(pAbc, command.c_str());
+  //return 0;
+  std::string command = "&demiter -f; miter miter_part0.aig miter_part1.aig";
+  Cmd_CommandExecute(pAbc, command.c_str());
+  Abc_Ntk_t *pNtk = Abc_FrameReadNtk(pAbc);
+  int r = Abc_NtkMiterSat( pNtk, 0, 0, 0, NULL, NULL );
+  if(r == -1) {
+    std::cout << "undecided" << std::endl;
+    return 1;
+  }
+  assert(r == 0 || r == 1);
+  if(!r) {
+    result.resize(Abc_NtkCiNum(pNtk));
+    int i;
+    Abc_Obj_t *pCi;
+    Abc_NtkForEachCi(pNtk, pCi, i) {
+      if(pNtk->pModel[i]) {
+	std::string name(Abc_ObjName(pCi));
+	name = name.substr(2);
+	int j = std::stoi(name);
+	result[j] = 1;
+      }
+    }
+  }
+  return 0;
+}
+
 void DumpMiterAiger(nodecircuit::Circuit &gf, nodecircuit::Circuit &rf, std::string filename, bool fzero) {
   nodecircuit::Circuit miter;
   nodecircuit::Miter(gf, rf, miter);
