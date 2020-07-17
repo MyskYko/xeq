@@ -285,6 +285,10 @@ namespace nodecircuit {
 	g[p] = (f[p->inputs[2]] & g[p->inputs[1]]) | (~f[p->inputs[2]] & g[p->inputs[0]]) |
 	  (g[p->inputs[2]] & (g[p->inputs[1]] | g[p->inputs[0]] | (f[p->inputs[1]] ^ f[p->inputs[0]])));
 	break;
+      case nodecircuit::NODE_ISX:
+	f[p] = g[p->inputs[0]];
+	g[p] = 0;
+	break;
       default:
 	throw "unkown gate type";
 	break;
