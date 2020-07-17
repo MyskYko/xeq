@@ -755,6 +755,161 @@ void Ckt2Cnf4(nodecircuit::NodeVector const &gates, std::map<nodecircuit::Node *
   }
 }
 
+void Ckt2Cnf5(nodecircuit::NodeVector const &gates, std::map<nodecircuit::Node *, int> const &m, Glucose::SimpSolver &S) {
+  Glucose::vec<Glucose::Lit> clause;
+  for (auto p: gates) {
+    switch(p->type) {
+    case nodecircuit::NODE_OTHER:
+      if (p->name == "1'b0") {
+	S.addClause(Glucose::mkLit(m.at(p), 1));
+	S.addClause(Glucose::mkLit(m.at(p) + 1, 1));
+      }
+      else if (p->name == "1'b1") {
+	S.addClause(Glucose::mkLit(m.at(p)));
+	S.addClause(Glucose::mkLit(m.at(p) + 1, 1));
+      }
+      else if (p->name == "1'bx") {	  
+	S.addClause(Glucose::mkLit(m.at(p) + 1));
+      }
+      break;
+    case nodecircuit::NODE_BUF:
+    case nodecircuit::NODE_NOT:
+      {
+	bool isNot = p->type == nodecircuit::NODE_NOT;
+	Glucose::Lit in0 = Glucose::mkLit(m.at(p->inputs[0]));
+	Glucose::Lit in0x = Glucose::mkLit(m.at(p->inputs[0]) + 1);
+	Glucose::Lit out = Glucose::mkLit(m.at(p), isNot);
+	Glucose::Lit outx = Glucose::mkLit(m.at(p) + 1);
+	clause.clear();
+	clause.push(out);
+	clause.push(in0x);
+	clause.push(~in0);
+	S.addClause(clause);
+	clause.clear();
+	clause.push(~out);
+	clause.push(in0x);
+	clause.push(in0);
+	S.addClause(clause);
+	Buf(S, in0x, outx);
+	break;
+      }
+    case nodecircuit::NODE_AND:
+    case nodecircuit::NODE_NAND:
+    case nodecircuit::NODE_OR:
+    case nodecircuit::NODE_NOR:
+      {
+        bool isOr = p->type == nodecircuit::NODE_OR || p->type == nodecircuit::NODE_NOR;
+	bool isNot = p->type == nodecircuit::NODE_NAND || p->type == nodecircuit::NODE_NOR;
+	Glucose::Lit in0 = Glucose::mkLit(m.at(p->inputs[0]), isOr);
+	Glucose::Lit in0x = Glucose::mkLit(m.at(p->inputs[0]) + 1);
+	for(int i = 1; i < p->inputs.size(); i++) {
+	  Glucose::Lit in1 = Glucose::mkLit(m.at(p->inputs[i]), isOr);
+	  Glucose::Lit in1x = Glucose::mkLit(m.at(p->inputs[i]) + 1);
+	  Glucose::Lit out, outx;
+	  if(i == p->inputs.size() - 1) {
+	    out = Glucose::mkLit(m.at(p), isNot ^ isOr);
+	    outx = Glucose::mkLit(m.at(p) + 1);
+	  }
+	  else {
+	    out = Glucose::mkLit(S.newVar());
+	    outx = Glucose::mkLit(S.newVar());
+	  }
+	  Glucose::Lit t0 = Glucose::mkLit(S.newVar());
+	  Glucose::Lit t1 = Glucose::mkLit(S.newVar());
+	  Glucose::Lit t2 = Glucose::mkLit(S.newVar());
+	  clause.clear();
+	  clause.push(out);
+	  clause.push(outx);
+	  clause.push(~in0);
+	  clause.push(~in1);
+	  S.addClause(clause);
+	  clause.clear();
+	  clause.push(~out);
+	  clause.push(outx);
+	  clause.push(in0);
+	  S.addClause(clause);
+	  clause.clear();
+	  clause.push(~out);
+	  clause.push(outx);
+	  clause.push(in1);
+	  S.addClause(clause);
+	  And2(S, in0x, in1x, t0);
+	  And2(S, in0, in1x, t1);
+	  And2(S, in0x, in1, t2);
+	  clause.clear();
+	  clause.push(t0);
+	  clause.push(t1);
+	  clause.push(t2);
+	  OrN(S, clause, outx);
+	  in0 = out;
+	  in0x = outx;
+	}
+	break;
+      }
+    case nodecircuit::NODE_XOR:
+    case nodecircuit::NODE_XNOR:
+      {
+	bool isNot = p->type == nodecircuit::NODE_XNOR;
+	Glucose::Lit in0 = Glucose::mkLit(m.at(p->inputs[0]));
+	clause.clear();
+	clause.push(Glucose::mkLit(m.at(p->inputs[0]) + 1));
+	for(int i = 1; i < p->inputs.size(); i++) {
+	  Glucose::Lit in1 = Glucose::mkLit(m.at(p->inputs[i]));
+	  clause.push(Glucose::mkLit(m.at(p->inputs[i]) + 1));
+	  Glucose::Lit out;
+	  if(i == p->inputs.size() - 1) {
+	    out = Glucose::mkLit(m.at(p), isNot);
+	  }
+	  else {
+	    out = Glucose::mkLit(S.newVar());
+	  }
+	  clause.push(out);
+	  clause.push(in0);
+	  clause.push(~in1);
+	  S.addClause(clause);
+	  clause.pop();
+	  clause.pop();
+	  clause.push(~in0);
+	  clause.push(in1);
+	  S.addClause(clause);
+	  clause.pop();
+	  clause.pop();
+	  clause.pop();
+	  clause.push(~out);
+	  clause.push(in0);
+	  clause.push(in1);
+	  S.addClause(clause);
+	  clause.pop();
+	  clause.pop();
+	  clause.push(~in0);
+	  clause.push(~in1);
+	  S.addClause(clause);
+	  clause.pop();
+	  clause.pop();
+	  clause.pop();
+	  in0 = out;
+	}
+	OrN(S, clause, Glucose::mkLit(m.at(p) + 1));
+	break;
+      }
+    case nodecircuit::NODE_DC:
+      LooseDC(p, m, S);
+      break;
+    case nodecircuit::NODE_MUX:
+      LooseMUX(p, m, S);
+      break;
+    case nodecircuit::NODE_ISX:
+      assert(p->inputs.size() == 1);
+      Buf(S, Glucose::mkLit(m.at(p->inputs[0]) + 1), Glucose::mkLit(m.at(p)));
+      S.addClause(Glucose::mkLit(m.at(p) + 1, 1));
+      break;
+    default:
+      assert(0);
+      break;
+    }
+  }
+}
+
 void SatSolve(nodecircuit::Circuit &gf, nodecircuit::Circuit &rf, std::vector<bool> &result, int gate_encoding, int out_encoding) {
   Glucose::SimpSolver S;
   Glucose::vec<Glucose::Lit> clause;
@@ -784,6 +939,9 @@ void SatSolve(nodecircuit::Circuit &gf, nodecircuit::Circuit &rf, std::vector<bo
     break;
   case 3:
     Ckt2Cnf4(gates, m, S);
+    break;
+  case 4:
+    Ckt2Cnf5(gates, m, S);
     break;
   default:
     assert(0);
@@ -852,6 +1010,9 @@ int SatSolve4(nodecircuit::Circuit &gf, nodecircuit::Circuit &rf, std::vector<bo
     break;
   case 3:
     Ckt2Cnf4(gates, m, S);
+    break;
+  case 4:
+    Ckt2Cnf5(gates, m, S);
     break;
   default:
     assert(0);
