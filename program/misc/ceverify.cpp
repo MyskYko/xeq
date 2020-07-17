@@ -81,13 +81,33 @@ int main(int argc, char **argv) {
     g.Simulate(pat, gfs, ggs);
     r.Simulate(pat, rfs, rgs);
     for(int i = 0; i < g.outputs.size(); i++) {
-      if(!ggs[i] && (rgs[i] || gfs[i] != rfs[i])) {
+      if(ggs[i] & 1) {
+	continue;
+      }
+      if((rgs[i] & 1) || (gfs[i] & 1) != (rfs[i] & 1)) {
 	std::cout << "Correct counter example" << std::endl;
 	return 0;
       }
     }
+    std::cout << "Wrong counter example" << std::endl;
+    std::cout << "output values" << std::endl;
+    for(int i = 0; i < g.outputs.size(); i++) {
+      if(ggs[i] & 1) {
+	std::cout << "x";
+      }
+      else {
+	std::cout << (gfs[i] & 1);
+      }
+      std::cout << " ";
+      if(rgs[i] & 1) {
+	std::cout << "x";
+      }
+      else {
+	std::cout << (rfs[i] & 1);
+      }
+      std::cout << std::endl;
+    }
   }
   
-  std::cout << "Wrong counter example" << std::endl;
   return 0;
 }
