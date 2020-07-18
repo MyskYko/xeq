@@ -11,7 +11,7 @@
 
 #include "abcsolve.h"
 
-Gia_Man_t *Ckt2Gia(nodecircuit::Circuit &ckt, bool fzero) {
+Gia_Man_t *Ckt2Gia(nodecircuit::Circuit &ckt, int gate_encoding) {
   Gia_Man_t *pGia, *pTemp;
   nodecircuit::NodeVector gates;
   ckt.GetGates(gates);
@@ -44,108 +44,119 @@ Gia_Man_t *Ckt2Gia(nodecircuit::Circuit &ckt, bool fzero) {
       }
       break;
     case nodecircuit::NODE_BUF:
-      f[p] = f[p->inputs[0]];
-      g[p] = g[p->inputs[0]];
-      break;
     case nodecircuit::NODE_NOT:
-      f[p] = Abc_LitNot(f[p->inputs[0]]);
-      g[p] = g[p->inputs[0]];
-      if(fzero) {
-	f[p] = Gia_ManHashAnd(pGia, f[p], Abc_LitNot(g[p]));
+      {
+	bool isNot = p->type == nodecircuit::NODE_NOT;
+	f[p] = Abc_LitNotCond(f[p->inputs[0]], isNot);
+	g[p] = g[p->inputs[0]];
+	switch(gate_encoding) {
+	case 0:
+	  break;
+	case 1:
+	  f[p] = Gia_ManHashAnd(pGia, f[p], Abc_LitNot(g[p]));
+	  break;
+	case 2:
+	  /*
+	  if(g[p] != Gia_ManConst0Lit()) {
+	    f[p] = Gia_ManHashMux(pGia, g[p], Gia_ManAppendCi(pGia), f[p]);
+	  }
+	  */
+	  break;
+	default:
+	  throw "undefined gate_encoding";
+	  break;
+	}
+	break;
       }
-      break;
     case nodecircuit::NODE_AND:
-      f[p] = Gia_ManConst1Lit();
-      g[p] = Gia_ManConst0Lit();
-      for(auto q : p->inputs) {
-	g[p] = Gia_ManHashOr(pGia,
-			     Gia_ManHashOr(pGia,
-					   Gia_ManHashAnd(pGia, f[p], g[q]), 
-					   Gia_ManHashAnd(pGia, f[q], g[p])),
-			     Gia_ManHashAnd(pGia, g[p], g[q]));
-	f[p] = Gia_ManHashAnd(pGia, f[p], f[q]);
-      }
-      if(fzero) {
-	f[p] = Gia_ManHashAnd(pGia, f[p], Abc_LitNot(g[p]));
-      }
-      break;
     case nodecircuit::NODE_NAND:
-      f[p] = Gia_ManConst1Lit();
-      g[p] = Gia_ManConst0Lit();
-      for(auto q : p->inputs) {
-	g[p] = Gia_ManHashOr(pGia,
-			     Gia_ManHashOr(pGia,
-					   Gia_ManHashAnd(pGia, f[p], g[q]), 
-					   Gia_ManHashAnd(pGia, f[q], g[p])),
-			     Gia_ManHashAnd(pGia, g[p], g[q]));
-	f[p] = Gia_ManHashAnd(pGia, f[p], f[q]);
-      }
-      f[p] = Abc_LitNot(f[p]);
-      if(fzero) {
-	f[p] = Gia_ManHashAnd(pGia, f[p], Abc_LitNot(g[p]));
-      }
-      break;
     case nodecircuit::NODE_OR:
-      f[p] = Gia_ManConst0Lit();
-      g[p] = Gia_ManConst0Lit();
-      for(auto q : p->inputs) {
-	g[p] = Gia_ManHashOr(pGia,
-			     Gia_ManHashOr(pGia,
-					   Gia_ManHashAnd(pGia, Abc_LitNot(f[p]), g[q]),
-					   Gia_ManHashAnd(pGia, Abc_LitNot(f[q]), g[p])),
-			     Gia_ManHashAnd(pGia, g[p], g[q]));
-	f[p] = Gia_ManHashOr(pGia, f[p], f[q]);
-      }
-      if(fzero) {
-	f[p] = Gia_ManHashAnd(pGia, f[p], Abc_LitNot(g[p]));
-      }
-      break;
     case nodecircuit::NODE_NOR:
-      f[p] = Gia_ManConst0Lit();
-      g[p] = Gia_ManConst0Lit();
-      for(auto q : p->inputs) {
-	g[p] = Gia_ManHashOr(pGia,
-			     Gia_ManHashOr(pGia,
-					   Gia_ManHashAnd(pGia, Abc_LitNot(f[p]), g[q]),
-					   Gia_ManHashAnd(pGia, Abc_LitNot(f[q]), g[p])),
-			     Gia_ManHashAnd(pGia, g[p], g[q]));
-	f[p] = Gia_ManHashOr(pGia, f[p], f[q]);
+      {
+	bool isNot = p->type == nodecircuit::NODE_NAND || p->type == nodecircuit::NODE_NOR;
+	bool isOr = p->type == nodecircuit::NODE_OR || p->type == nodecircuit::NODE_NOR;
+	f[p] = Abc_LitNotCond(Gia_ManConst1Lit(), isOr);
+	g[p] = Gia_ManConst0Lit();
+	for(auto q : p->inputs) {
+	  int in0 = Abc_LitNotCond(f[p], isOr);
+	  int in1 = Abc_LitNotCond(f[q], isOr);
+	  g[p] = Gia_ManHashOr(pGia,
+			       Gia_ManHashOr(pGia,
+					     Gia_ManHashAnd(pGia, in0, g[q]),
+					     Gia_ManHashAnd(pGia, in1, g[p])),
+			       Gia_ManHashAnd(pGia, g[p], g[q]));
+	  f[p] = Gia_ManHashAnd(pGia, in0, in1);
+	  f[p] = Abc_LitNotCond(f[p], isOr);
+	}
+	f[p] = Abc_LitNotCond(f[p], isNot);
+	switch(gate_encoding) {
+	case 0:
+	  break;
+	case 1:
+	  f[p] = Gia_ManHashAnd(pGia, f[p], Abc_LitNot(g[p]));
+	  break;
+	case 2:
+	  /*
+	  if(g[p] != Gia_ManConst0Lit()) {
+	    f[p] = Gia_ManHashMux(pGia, g[p], Gia_ManAppendCi(pGia), f[p]);
+	  }
+	  */
+	  break;
+	default:
+	  throw "undefined gate_encoding";
+	  break;
+	}
+	break;
       }
-      f[p] = Abc_LitNot(f[p]);
-      if(fzero) {
-	f[p] = Gia_ManHashAnd(pGia, f[p], Abc_LitNot(g[p]));
-      }
-      break;
     case nodecircuit::NODE_XOR:
-      f[p] = Gia_ManConst0Lit();
-      g[p] = Gia_ManConst0Lit();
-      for(auto q : p->inputs) {
-	f[p] = Gia_ManHashXor(pGia, f[p], f[q]);
-	g[p] = Gia_ManHashOr(pGia, g[p], g[q]);
-      }
-      if(fzero) {
-	f[p] = Gia_ManHashAnd(pGia, f[p], Abc_LitNot(g[p]));
-      }
-      break;
     case nodecircuit::NODE_XNOR:
-      f[p] = Gia_ManConst0Lit();
-      g[p] = Gia_ManConst0Lit();
-      for(auto q : p->inputs) {
-	f[p] = Gia_ManHashXor(pGia, f[p], f[q]);
-	g[p] = Gia_ManHashOr(pGia, g[p], g[q]);
+      {
+	bool isNot = p->type == nodecircuit::NODE_XNOR;
+	f[p] = Gia_ManConst0Lit();
+	g[p] = Gia_ManConst0Lit();
+	for(auto q : p->inputs) {
+	  f[p] = Gia_ManHashXor(pGia, f[p], f[q]);
+	  g[p] = Gia_ManHashOr(pGia, g[p], g[q]);
+	}
+	f[p] = Abc_LitNotCond(f[p], isNot);
+	switch(gate_encoding) {
+	case 0:
+	  break;
+	case 1:
+	  f[p] = Gia_ManHashAnd(pGia, f[p], Abc_LitNot(g[p]));
+	  break;
+	case 2:
+	  /*
+	  if(g[p] != Gia_ManConst0Lit()) {
+	    f[p] = Gia_ManHashMux(pGia, g[p], Gia_ManAppendCi(pGia), f[p]);
+	  }
+	  */
+	  break;
+	default:
+	  throw "undefined gate_encoding";
+	  break;
+	}
+	break;
       }
-      f[p] = Abc_LitNot(f[p]);
-      if(fzero) {
-	f[p] = Gia_ManHashAnd(pGia, f[p], Abc_LitNot(g[p]));
-      }
-      break;
     case nodecircuit::NODE_DC:
       f[p] = f[p->inputs[0]];
       g[p] = Gia_ManHashOr(pGia,
 			   Gia_ManHashOr(pGia, g[p->inputs[0]], f[p->inputs[1]]),
 			   g[p->inputs[1]]);
-      if(fzero) {
+      switch(gate_encoding) {
+      case 0:
+	break;
+      case 1:
 	f[p] = Gia_ManHashAnd(pGia, f[p], Abc_LitNot(g[p]));
+	break;
+      case 2:
+	if(g[p] != Gia_ManConst0Lit()) {
+	  f[p] = Gia_ManHashMux(pGia, g[p], Gia_ManAppendCi(pGia), f[p]);
+	}
+	break;
+      default:
+	throw "undefined gate_encoding";
+	break;
       }
       break;
     case nodecircuit::NODE_MUX:
@@ -158,8 +169,20 @@ Gia_Man_t *Ckt2Gia(nodecircuit::Circuit &ckt, bool fzero) {
 					  Gia_ManHashOr(pGia,
 							Gia_ManHashOr(pGia, g[p->inputs[1]], g[p->inputs[0]]),
 							Gia_ManHashXor(pGia, f[p->inputs[1]], f[p->inputs[0]]))));
-      if(fzero) {
+      switch(gate_encoding) {
+      case 0:
+	break;
+      case 1:
 	f[p] = Gia_ManHashAnd(pGia, f[p], Abc_LitNot(g[p]));
+	break;
+      case 2:
+	if(g[p] != Gia_ManConst0Lit()) {
+	  f[p] = Gia_ManHashMux(pGia, g[p], Gia_ManAppendCi(pGia), f[p]);
+	}
+	break;
+      default:
+	throw "undefined gate_encoding";
+	break;
       }
       break;
     case nodecircuit::NODE_ISX:
@@ -181,10 +204,10 @@ Gia_Man_t *Ckt2Gia(nodecircuit::Circuit &ckt, bool fzero) {
   return pGia;
 }
 
-int AbcSolve(nodecircuit::Circuit &gf, nodecircuit::Circuit &rf, std::vector<bool> &result, bool fzero) {
+int AbcSolve(nodecircuit::Circuit &gf, nodecircuit::Circuit &rf, std::vector<bool> &result, int gate_encoding) {
   nodecircuit::Circuit miter;
   nodecircuit::Miter(gf, rf, miter);
-  Gia_Man_t *pGia = Ckt2Gia(miter, fzero);
+  Gia_Man_t *pGia = Ckt2Gia(miter, gate_encoding);
   Cec_ParCec_t ParsCec, *pPars = &ParsCec;
   Cec_ManCecSetDefaultParams(pPars);
   //pPars->nBTLimit = 0;
@@ -200,8 +223,8 @@ int AbcSolve(nodecircuit::Circuit &gf, nodecircuit::Circuit &rf, std::vector<boo
   }
   assert(r == 0 || r == 1);
   if(!r) {
-    result.resize(Gia_ManCiNum(pGia));
-    for(int j = 0; j < Gia_ManCiNum(pGia); j++) {
+    result.resize(miter.inputs.size());
+    for(int j = 0; j < miter.inputs.size(); j++) {
       if(Abc_InfoHasBit(pGia->pCexComb->pData, j)) {
 	result[j] = 1;
       }
