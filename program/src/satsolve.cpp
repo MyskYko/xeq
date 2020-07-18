@@ -286,13 +286,12 @@ void Ckt2Cnf(nodecircuit::NodeVector const &gates, std::map<nodecircuit::Node *,
       LooseMUX(p, m, S);
       break;
     case nodecircuit::NODE_ISX:
-      assert(p->inputs.size() == 1);
       S.addClause(Glucose::mkLit(m.at(p->inputs[0]) + 1, 1), Glucose::mkLit(m.at(p)));	
       S.addClause(Glucose::mkLit(m.at(p->inputs[0]) + 1), Glucose::mkLit(m.at(p), 1));
       S.addClause(Glucose::mkLit(m.at(p) + 1, 1));
       break;
     default:
-      assert(0);
+      throw "unknown gate type";
       break;
     }
   }            
@@ -484,12 +483,11 @@ void Ckt2Cnf2(nodecircuit::NodeVector const &gates, std::map<nodecircuit::Node *
       LooseMUX(p, m, S);
       break;
     case nodecircuit::NODE_ISX:
-      assert(p->inputs.size() == 1);
       Buf(S, Glucose::mkLit(m.at(p->inputs[0]) + 1), Glucose::mkLit(m.at(p)));
       S.addClause(Glucose::mkLit(m.at(p) + 1, 1));
       break;
     default:
-      assert(0);
+      throw "unknown gate type";
       break;
     }
   }
@@ -637,12 +635,11 @@ void Ckt2Cnf3(nodecircuit::NodeVector const &gates, std::map<nodecircuit::Node *
       LooseMUX(p, m, S);
       break;
     case nodecircuit::NODE_ISX:
-      assert(p->inputs.size() == 1);
       Buf(S, Glucose::mkLit(m.at(p->inputs[0]) + 1), Glucose::mkLit(m.at(p)));
       S.addClause(Glucose::mkLit(m.at(p) + 1, 1));
       break;
     default:
-      assert(0);
+      throw "unkown gate type";
       break;
     }
   }
@@ -744,12 +741,11 @@ void Ckt2Cnf4(nodecircuit::NodeVector const &gates, std::map<nodecircuit::Node *
       LooseMUX(p, m, S);
       break;
     case nodecircuit::NODE_ISX:
-      assert(p->inputs.size() == 1);
       Buf(S, Glucose::mkLit(m.at(p->inputs[0]) + 1), Glucose::mkLit(m.at(p)));
       S.addClause(Glucose::mkLit(m.at(p) + 1, 1));
       break;
     default:
-      assert(0);
+      throw "unkown gate type";
       break;
     }
   }
@@ -899,12 +895,11 @@ void Ckt2Cnf5(nodecircuit::NodeVector const &gates, std::map<nodecircuit::Node *
       LooseMUX(p, m, S);
       break;
     case nodecircuit::NODE_ISX:
-      assert(p->inputs.size() == 1);
       Buf(S, Glucose::mkLit(m.at(p->inputs[0]) + 1), Glucose::mkLit(m.at(p)));
       S.addClause(Glucose::mkLit(m.at(p) + 1, 1));
       break;
     default:
-      assert(0);
+      throw "unknown gate type";
       break;
     }
   }
@@ -944,7 +939,7 @@ void SatSolve(nodecircuit::Circuit &gf, nodecircuit::Circuit &rf, std::vector<bo
     Ckt2Cnf5(gates, m, S);
     break;
   default:
-    assert(0);
+    throw "undefined gate encoding";
   }
   // outputs
   std::vector<int> outputs;
@@ -960,7 +955,7 @@ void SatSolve(nodecircuit::Circuit &gf, nodecircuit::Circuit &rf, std::vector<bo
     AddMiterOutput2(outputs, S);
     break;
   default:
-    assert(0);
+    throw "undefined output encoding";
   }
   // solve
   bool r = S.solve();
@@ -1015,7 +1010,7 @@ int SatSolve4(nodecircuit::Circuit &gf, nodecircuit::Circuit &rf, std::vector<bo
     Ckt2Cnf5(gates, m, S);
     break;
   default:
-    assert(0);
+    throw "undefined gate encoding";
   }
   // solve
   bool r = 0;

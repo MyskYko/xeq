@@ -40,7 +40,7 @@ Gia_Man_t *Ckt2Gia(nodecircuit::Circuit &ckt, int gate_encoding) {
 	g[p] = Gia_ManConst1Lit();
       }
       else {
-	assert(0);
+	throw "unknown constant " + p->name;
       }
       break;
     case nodecircuit::NODE_BUF:

@@ -19,7 +19,9 @@ namespace nodecircuit {
 
   void Circuit::ReadVerilog(string filename) {
     ifstream f(filename);
-    if(!f) return;
+    if(!f) {
+      throw "file not found";
+    }
     string line;
     string::size_type pos;
     //string rest;
