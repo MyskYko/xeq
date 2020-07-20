@@ -10,6 +10,7 @@
 #include <base/main/mainInt.h>
 
 #include "abcsolve.h"
+#include "cec.h"
 
 Gia_Man_t *Ckt2Gia(nodecircuit::Circuit &ckt, int gate_encoding) {
   Gia_Man_t *pGia, *pTemp;
@@ -213,9 +214,14 @@ int AbcSolve(nodecircuit::Circuit &gf, nodecircuit::Circuit &rf, std::vector<boo
   //pPars->nBTLimit = 0;
   //pPars->fSilent = 1;
   //pPars->TimeLimit = 90;
-  //pPars->fVerbose = 1;
+  pPars->fVerbose = 1;
+  pPars->fNaive = 1;
   Dar_LibStart();
-  int r = Cec_ManVerify(pGia, pPars);
+  int r = cec(pGia, pPars);
+  if(r == -1) {
+    pPars->fNaive = 0;
+    r = cec(pGia, pPars);
+  }
   if(r == -1) {
     std::cout << "undecided" << std::endl;
     Gia_ManStop(pGia);
