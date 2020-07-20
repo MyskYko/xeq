@@ -8,6 +8,7 @@
 #include <proof/cec/cec.h>
 #include <base/main/main.h>
 #include <base/main/mainInt.h>
+#include <bdd/extrab/extraBdd.h>
 
 #include "abcsolve.h"
 #include "cec.h"
@@ -205,6 +206,52 @@ Gia_Man_t *Ckt2Gia(nodecircuit::Circuit &ckt, int gate_encoding) {
   return pGia;
 }
 
+int AbcBddCollapse(Gia_Man_t *pMiter, std::vector<bool> &result) {
+  Abc_Frame_t *pAbc = Abc_FrameGetGlobalFrame();
+  if(pAbc->pGia) {
+    Gia_ManStop(pAbc->pGia);
+  }
+  pAbc->pGia = pMiter;
+  std::string command = "&put; miter -t; orpos; if -K 6 -m; order; strash";
+  Cmd_CommandExecute(pAbc, command.c_str());
+  Abc_Ntk_t *pNtk = Abc_FrameReadNtk(pAbc);
+  int maxsize = 1000000;
+  int fVerbose = 0;
+#ifndef NDEBUG
+  fVerbose = 1;
+#endif
+  if(Abc_NtkBuildGlobalBdds(pNtk, maxsize, 1, 0, 0, fVerbose) == NULL) {
+    // undecided
+    return 1;
+  }
+  DdManager *dd = (DdManager *)Abc_NtkGlobalBddMan(pNtk);
+  Abc_Obj_t *pNode = Abc_NtkCo(pNtk, 0);
+  DdNode *bFunc = (DdNode *)Abc_ObjGlobalBdd(pNode);
+  if(bFunc == b0) {
+    // equivalent
+    Abc_NtkFreeGlobalBdds(pNtk, 1);
+    return 0;
+  }
+  // non-equivalent
+  bFunc = Extra_bddFindOneCube(dd, bFunc);
+  int *pArray = (int*)malloc(sizeof(int) *Abc_NtkCiNum(pNtk));
+  Cudd_BddToCubeArray(dd, bFunc, pArray);
+  result.resize(Abc_NtkCiNum(pNtk));
+  int i;
+  Abc_Obj_t *pCi;
+  Abc_NtkForEachCi(pNtk, pCi, i) {
+    if(pArray[i]) {
+      std::string name(Abc_ObjName(pCi));
+      name = name.substr(2);
+      int j = std::stoi(name);
+      result[j] = 1;
+    }
+  }
+  free(pArray);
+  Abc_NtkFreeGlobalBdds(pNtk, 1);
+  return 0;
+}
+
 int AbcSolve(nodecircuit::Circuit &gf, nodecircuit::Circuit &rf, std::vector<bool> &result, int gate_encoding) {
   nodecircuit::Circuit miter;
   nodecircuit::Miter(gf, rf, miter);
@@ -214,7 +261,9 @@ int AbcSolve(nodecircuit::Circuit &gf, nodecircuit::Circuit &rf, std::vector<boo
   //pPars->nBTLimit = 0;
   //pPars->fSilent = 1;
   //pPars->TimeLimit = 90;
+#ifndef NDEBUG
   pPars->fVerbose = 1;
+#endif
   pPars->fNaive = 1;
   Dar_LibStart();
   int r = cec(pGia, pPars);
@@ -223,11 +272,13 @@ int AbcSolve(nodecircuit::Circuit &gf, nodecircuit::Circuit &rf, std::vector<boo
     r = cec(pGia, pPars);
   }
   if(r == -1) {
-    std::cout << "undecided" << std::endl;
-    Gia_ManStop(pGia);
-    return 1;
+    //acec
+    ;
   }
-  assert(r == 0 || r == 1);
+  if(r == 1) {
+    Gia_ManStop(pGia);
+    return 0;
+  }
   if(!r) {
     result.resize(miter.inputs.size());
     for(int j = 0; j < miter.inputs.size(); j++) {
@@ -235,9 +286,11 @@ int AbcSolve(nodecircuit::Circuit &gf, nodecircuit::Circuit &rf, std::vector<boo
 	result[j] = 1;
       }
     }
+    return 0;
   }
+  r = AbcBddCollapse(pGia, result);
   Gia_ManStop(pGia);
-  return 0;
+  return r;
 }
 
 int AbcSolve2(nodecircuit::Circuit &gf, nodecircuit::Circuit &rf, std::vector<bool> &result, bool fzero) {
@@ -284,32 +337,3 @@ void DumpMiterAiger(nodecircuit::Circuit &gf, nodecircuit::Circuit &rf, std::str
   Gia_ManStop(pGia);
 }
 
-void AbcSolveBdd(nodecircuit::Circuit &gf, nodecircuit::Circuit &rf, std::vector<bool> &result) {
-  nodecircuit::Circuit miter;
-  nodecircuit::Miter(gf, rf, miter);
-  Gia_Man_t *pGia = Ckt2Gia(miter, 0);
-  Abc_Frame_t *pAbc = Abc_FrameGetGlobalFrame();
-  pAbc->pGia = pGia;
-  std::string command = "&put; miter -t; if -K 6 -m; order; collapse -rv; strash; orpos";
-  Cmd_CommandExecute(pAbc, command.c_str());
-  Abc_Ntk_t *pNtk = Abc_FrameReadNtk(pAbc);
-  int r = Abc_NtkMiterSat( pNtk, 0, 0, 0, NULL, NULL );
-  if(r == -1) {
-    std::cout << "undecided" << std::endl;
-    return;
-  }
-  assert(r == 0 || r == 1);
-  if(!r) {
-    result.resize(Abc_NtkCiNum(pNtk));
-    int i;
-    Abc_Obj_t *pCi;
-    Abc_NtkForEachCi(pNtk, pCi, i) {
-      if(pNtk->pModel[i]) {
-	std::string name(Abc_ObjName(pCi));
-	name = name.substr(2);
-	int j = std::stoi(name);
-	result[j] = 1;
-      }
-    }
-  }
-}
