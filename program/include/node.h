@@ -108,6 +108,6 @@ namespace nodecircuit {
     }
   };
 
-  void Miter(Circuit const &g, Circuit const &r, Circuit &miter);
+  void Miter(Circuit const &g, Circuit const &r, Circuit &miter, bool xencoding = 0);
   
 } // namespace nodecircuit

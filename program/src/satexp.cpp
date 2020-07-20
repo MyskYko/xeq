@@ -719,6 +719,13 @@ void SatExp(nodecircuit::Circuit &gf, nodecircuit::Circuit &rf, std::vector<bool
     auto q = f.outputs[i];
     Glucose::Lit o = Glucose::mkLit(S.newVar());
     Add2Xor(S, Glucose::mkLit(m[p]), Glucose::mkLit(m[q]), o);
+    /* // for xencoding miter
+      Glucose::Lit t0 = Glucose::mkLit(S.newVar());
+      Glucose::Lit t1 = Glucose::mkLit(S.newVar());
+      Add2Xor(S, Glucose::mkLit(m[p]), Glucose::mkLit(m[q]), t0);
+      Add2Or(S, t0, Glucose::mkLit(m[q] + 1), t1);
+      Add2And(S, t1, Glucose::mkLit(m[p] + 1, 1), o);
+    */
     clause.push(o);
   }
   S.addClause(clause);

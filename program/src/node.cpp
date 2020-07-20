@@ -310,7 +310,7 @@ namespace nodecircuit {
     }
   }
 
-  void Miter(Circuit const &g, Circuit const &r, Circuit &miter) {
+  void Miter(Circuit const &g, Circuit const &r, Circuit &miter, bool xencoding) {
     std::map<Node *, Node *> m;
     // inputs
     for(int i = 0; i < g.inputs.size(); i++) {
@@ -364,6 +364,14 @@ namespace nodecircuit {
       m[p] = q;
     }
     // outputs
+    if(xencoding) {
+      for(int i = 0; i < g.outputs.size(); i++) {
+	std::string name = g.outputs[i]->name;
+	miter.outputs.push_back(m[g.outputs[i]]);
+	miter.outputs.push_back(m[r.outputs[i]]);
+      }
+      return;
+    }
     // check x compatibility (gx = 1 -> rx = 1)
     for(int i = 0; i < g.outputs.size(); i++) {
       std::string name = g.outputs[i]->name;
