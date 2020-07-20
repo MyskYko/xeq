@@ -56,81 +56,6 @@ void transformpattern( Gia_Man_t * p, int iOut, int * pValues )
 
 /**Function*************************************************************
 
-  Synopsis    [Interface to the old CEC engine]
-
-  Description []
-               
-  SideEffects []
-
-  SeeAlso     []
-
-***********************************************************************/
-int cecold( Gia_Man_t * pMiter, int fVerbose, int * piOutFail, abctime clkTotal, int fSilent )
-{
-//    extern int Fra_FraigCec( Aig_Man_t ** ppAig, int nConfLimit, int fVerbose );
-//    extern int Ssw_SecCexResimulate( Aig_Man_t * p, int * pModel, int * pnOutputs );
-    Gia_Man_t * pTemp = Gia_ManTransformMiter( pMiter );
-    Aig_Man_t * pMiterCec = Gia_ManToAig( pTemp, 0 );
-    int RetValue, iOut, nOuts;
-    if ( piOutFail )
-        *piOutFail = -1;
-    Gia_ManStop( pTemp );
-    // run CEC on this miter
-    //RetValue = Fra_FraigCec( &pMiterCec, 10000000, fVerbose );
-    RetValue = Fra_FraigSat( pMiterCec, 1000, (ABC_INT64_T)0, 0, 0, 0, 1, 0, 0, 0 );
-    // report the miter
-    if ( RetValue == 1 )
-    {
-        if ( !fSilent )
-        {
-            Abc_Print( 1, "Networks are equivalent.  " );
-            Abc_PrintTime( 1, "Time", Abc_Clock() - clkTotal );
-        }
-    }
-    else if ( RetValue == 0 )
-    {
-        if ( !fSilent )
-        {
-            Abc_Print( 1, "Networks are NOT EQUIVALENT.  " );
-            Abc_PrintTime( 1, "Time", Abc_Clock() - clkTotal );
-        }
-	transformpattern( pMiter, -1, (int *)pMiterCec->pData );
-	/*
-        if ( pMiterCec->pData == NULL )
-            Abc_Print( 1, "Counter-example is not available.\n" );
-        else
-        {
-            iOut = Ssw_SecCexResimulate( pMiterCec, (int *)pMiterCec->pData, &nOuts );
-            if ( iOut == -1 )
-                Abc_Print( 1, "Counter-example verification has failed.\n" );
-            else 
-            {
-                if ( !fSilent )
-                {
-                    Abc_Print( 1, "Primary output %d has failed", iOut );
-                    if ( nOuts-1 >= 0 )
-                        Abc_Print( 1, ", along with other %d incorrect outputs", nOuts-1 );
-                    Abc_Print( 1, ".\n" );
-                }
-                if ( piOutFail )
-                    *piOutFail = iOut;
-            }
-            Cec_ManTransformPattern( pMiter, iOut, (int *)pMiterCec->pData );
-        }
-	*/
-    }
-    else if ( !fSilent )
-    {
-        Abc_Print( 1, "Networks are UNDECIDED.  " );
-        Abc_PrintTime( 1, "Time", Abc_Clock() - clkTotal );
-    }
-    fflush( stdout );
-    Aig_ManStop( pMiterCec );
-    return RetValue;
-}
-
-/**Function*************************************************************
-
   Synopsis    []
 
   Description []
@@ -399,7 +324,7 @@ int cec( Gia_Man_t * pInit, Cec_ParCec_t * pPars )
     }
     // sweep for equivalences
     Cec_ManFraSetDefaultParams( pParsFra );
-    pParsFra->nItersMax    = 1000;
+    pParsFra->nItersMax    = 1;
     pParsFra->nBTLimit     = pPars->nBTLimit;
     pParsFra->TimeLimit    = pPars->TimeLimit;
     pParsFra->fVerbose     = pPars->fVerbose;
@@ -448,16 +373,8 @@ int cec( Gia_Man_t * pInit, Cec_ParCec_t * pPars )
         Gia_ManStop( pNew );
         return -1;
     }
-    // call other solver
-    if ( pPars->fVerbose )
-        Abc_Print( 1, "Calling the old CEC engine.\n" );
-    fflush( stdout );
-    RetValue = cecold( pNew, pPars->fVerbose, &pPars->iOutFail, clkTotal, pPars->fSilent );
-    p->pCexComb = pNew->pCexComb; pNew->pCexComb = NULL;
-    if ( p->pCexComb && !Gia_ManVerifyCex( p, p->pCexComb, 1 ) )
-        Abc_Print( 1, "Counter-example simulation has failed.\n" );
     Gia_ManStop( pNew );
-    return RetValue;
+    return -1;
 }
 
 
