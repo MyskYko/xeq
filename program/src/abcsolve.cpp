@@ -6,6 +6,7 @@
 #include <aig/aig/aig.h>
 #include <opt/dar/dar.h>
 #include <proof/cec/cec.h>
+#include <proof/acec/acec.h>
 #include <base/main/main.h>
 #include <base/main/mainInt.h>
 #include <bdd/extrab/extraBdd.h>
@@ -272,8 +273,12 @@ int AbcSolve(nodecircuit::Circuit &gf, nodecircuit::Circuit &rf, std::vector<boo
     r = cec(pGia, pPars);
   }
   if(r == -1) {
-    //acec
-    ;
+    Acec_ParCec_t ParsAcec, * pParsAcec = &ParsAcec;
+    Acec_ManCecSetDefaultParams(pParsAcec);
+    Gia_Man_t *pGia0, *pGia1;
+    Gia_ManDemiterDual(pGia, &pGia0, &pGia1);
+    r = Acec_Solve(pGia0, pGia1, pParsAcec);
+    pGia->pCexComb = pGia0->pCexComb; pGia0->pCexComb = NULL;    
   }
   if(r == 1) {
     Gia_ManStop(pGia);
