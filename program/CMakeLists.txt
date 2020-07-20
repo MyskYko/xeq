@@ -13,7 +13,6 @@ add_executable(xeq ${FILENAMES})
 target_link_libraries(xeq bdd atbdd glucose libabc)
 target_include_directories(xeq PRIVATE ${CMAKE_CURRENT_SOURCE_DIR}/lib/glucose)
 
-list(REMOVE_ITEM FILENAMES ${CMAKE_CURRENT_SOURCE_DIR}/src/main.cpp)
-add_executable(ceverify ${CMAKE_CURRENT_SOURCE_DIR}/misc/ceverify.cpp ${FILENAMES})
+add_executable(ceverify ${CMAKE_CURRENT_SOURCE_DIR}/misc/ceverify.cpp ${CMAKE_CURRENT_SOURCE_DIR}/src/node.cpp)
 target_link_libraries(ceverify bdd atbdd glucose libabc)
 target_include_directories(ceverify PRIVATE ${CMAKE_CURRENT_SOURCE_DIR}/lib/glucose)
