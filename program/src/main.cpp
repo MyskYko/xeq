@@ -3,6 +3,8 @@
 #include <algorithm>
 
 #include "node.h"
+#include "satsolve.h"
+#include "abcsolve.h"
 
 int main(int argc, char **argv) {
   if(argc < 4) {
@@ -44,9 +46,13 @@ int main(int argc, char **argv) {
       std::cout << "different output names" << std::endl;
     }
   }
-  
-  // Solve(g, r, result);
 
+  int res;
+  res = AbcSolve(g, r, result, 1);
+  if(res) {
+    SatSolve(g, r, result, 4);
+  }
+  
   std::ofstream f(oname);
   if(!f) {
     std::cout << "cannot open " << oname << std::endl;
