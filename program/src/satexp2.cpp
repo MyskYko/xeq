@@ -20,7 +20,7 @@ void Ite(Glucose::SimpSolver &S, Glucose::Lit c, Glucose::Lit t, Glucose::Lit e,
   S.addClause(t, e, ~r);
 }
 
-void SatExp2(nodecircuit::Circuit &gf, nodecircuit::Circuit &rf, std::vector<bool> &result, int gate_encoding, int output_encoding) {
+int SatExp2(nodecircuit::Circuit &gf, nodecircuit::Circuit &rf, std::vector<bool> &result, int gate_encoding, int output_encoding) {
   // create miter circuit
   nodecircuit::Circuit miter;
   nodecircuit::Miter(gf, rf, miter);
@@ -397,4 +397,5 @@ void SatExp2(nodecircuit::Circuit &gf, nodecircuit::Circuit &rf, std::vector<boo
       }
     }
   }
+  return 0;
 }

@@ -3,7 +3,7 @@
 #include <algorithm>
 
 #include "node.h"
-#include "satsolve.h"
+#include "satexp2.h"
 #include "abcsolve.h"
 
 int main(int argc, char **argv) {
@@ -50,7 +50,10 @@ int main(int argc, char **argv) {
   int res;
   res = AbcSolve(g, r, result, 1);
   if(res) {
-    SatSolve(g, r, result, 4);
+    res = SatExp2(g, r, result, 4);
+  }
+  if(res) {
+    return 1;
   }
   
   std::ofstream f(oname);
