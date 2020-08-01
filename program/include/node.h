@@ -4,6 +4,9 @@
 #include <vector>
 #include <set>
 #include <map>
+#include <algorithm>
+
+#include <assert.h>
 
 namespace nodecircuit {
 
@@ -18,7 +21,11 @@ namespace nodecircuit {
     NODE_XOR,
     NODE_XNOR,
     NODE_DC,
-    NODE_MUX
+    NODE_MUX,
+    NODE_SHARP,
+    NODE_SHARPL,
+    NODE_CONST0,
+    NODE_CONST1
   };
 
   class Node;
@@ -52,16 +59,15 @@ namespace nodecircuit {
     virtual ~Circuit() {};
 
     void ReadVerilog(std::string filename);
+    void ReadVerilogNew(std::string filename);
     void GetGates(NodeVector &gates);
     void PrintNodes();
-
-    void Simulate(std::vector<int> const &pat, std::vector<int> &fs, std::vector<int> &gs, std::map<Node *, int> *f = NULL,  std::map<Node *, int> *g = NULL); // simulate 32 patterns at once
     
   public:
     std::string name;
-    NodeVector inputs;    // primary inputs
-    NodeVector outputs;   // primary outputs
-    NodeVector all_nodes; // all nodes including inputs/outputs/targets
+    NodeVector inputs;           // primary inputs
+    NodeVector outputs;          // primary outputs    
+    NodeVector all_nodes;        // all nodes including inputs/outputs/targets
     std::map<std::string, Node *> all_nodes_map; // mapping node names to nodes
 
     Node *CreateNode(std::string name) {
@@ -76,6 +82,18 @@ namespace nodecircuit {
       std::map<std::string, Node*>::iterator it = all_nodes_map.find(name);
       if (it != all_nodes_map.end())
         return it->second;
+      return NULL;
+    }
+    // find the index of a node in all_nodes
+    int GetNodeIndex(std::string name) {
+      Node *p = GetNode(name);
+      std::vector<Node*>::iterator it = find(all_nodes.begin(), all_nodes.end(), p);
+      bool node_exist = 0;
+      if (it != all_nodes.end()) {
+	node_exist = 1;
+	return distance(all_nodes.begin(), it);
+      }      
+      assert(node_exist);
       return NULL;
     }
     Node *GetOrCreateNode(std::string name) {
