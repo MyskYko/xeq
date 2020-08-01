@@ -69,7 +69,8 @@ void Verilog2BLIF(string filename, vector<string> &inputs, vector<string> &outpu
       string item;
       while(getline(ss, item, ',')) {
 	inputs.push_back(item);
-	item = item.substr(1);
+	if (item[0] == '\\') 
+	  item = item.substr(1);
 	inputs_extend.push_back(item);
       }
     }
@@ -78,7 +79,8 @@ void Verilog2BLIF(string filename, vector<string> &inputs, vector<string> &outpu
       string item;
       while(getline(ss, item, ',')) {
 	outputs.push_back(item);
-	item = item.substr(1);
+	if (item[0] == '\\') 
+	  item = item.substr(1);
 	outputs_extend.push_back(item);
       }
     }
@@ -99,14 +101,18 @@ void Verilog2BLIF(string filename, vector<string> &inputs, vector<string> &outpu
 	stringstream ss(line);
 	string item;
 	getline(ss, item, ',');
+	if (item[0] == '\\') 
+	  item = item.substr(1);
 	names.push_back(item);
 	while(getline(ss, item, ',')) {
+          if (item[0] == '\\') 
+	    item = item.substr(1);
 	  names.push_back(item);	  	
 	}
 	assert(names.size() == 3);
 	bool flag = false;
 	for (int i = 0; i < inputs_extend.size(); i++) {
-	  if (names[0] == inputs_extend[i] || names[0][0] == '\'') {
+	  if (names[0] == inputs_extend[i] || names[0][1] == '\'') {
 	    break;
 	  }
 	  if (i == inputs_extend.size() - 1) {
@@ -118,7 +124,7 @@ void Verilog2BLIF(string filename, vector<string> &inputs, vector<string> &outpu
 	}
 	flag = false;
 	for (int i = 0; i < outputs_extend.size(); i++) {
-	  if (names[1] == outputs_extend[i] || names[1][0] == '\'') {
+	  if (names[1] == outputs_extend[i] || names[1][1] == '\'') {
 	    break;
 	  }
 	  if (i == outputs_extend.size() - 1) {
@@ -130,7 +136,7 @@ void Verilog2BLIF(string filename, vector<string> &inputs, vector<string> &outpu
 	}
 	flag = false;
 	for (int i = 0; i < outputs_extend.size(); i++) {
-	  if (names[2] == outputs_extend[i] || names[2][0] == '\'') {
+	  if (names[2] == outputs_extend[i] || names[2][1] == '\'') {
 	    break;
 	  }
 	  if (i == outputs_extend.size() - 1) {
@@ -149,9 +155,13 @@ void Verilog2BLIF(string filename, vector<string> &inputs, vector<string> &outpu
 	stringstream ss(line);
 	string item;
 	getline(ss, item, ',');
+	if (item[0] == '\\') 
+	  item = item.substr(1);
 	names.push_back(item);
 	while(getline(ss, item, ',')) {
-	  names.push_back(item);	  	
+	  if (item[0] == '\\') 
+	    item = item.substr(1);
+          names.push_back(item);	  	
 	}
 	blif << ".names ";
 	for (int i = 1; i < names.size(); i++) {
