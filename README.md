@@ -38,6 +38,6 @@ During minimization, original Verilog file is at first converted into BLIF file,
 
 To use the new function:
  - Include "minimize.h" in main function.
- - Call Minimize(filename), taking "gf1.v" as an example, a file named "minimized_gf1.v" would be established, as well as intermediate files "Verilog2BLIF.blif", "twmp.blif" and "temp.blif".
+ - Call Minimize(filename), taking "gf1.v" as an example, a file named "minimized_gf1.v" would be established, as well as intermediate files "Verilog2BLIF.blif", "temp.blif" and "temp.v".
  - Use ReadVerilogNew(minimized_filename), e.g. minimized_gf1.v, to generate Nodecircuit.
  - Since the format of the re-written verilog is different from the original one, like upmost 2 inputs for each gate and new gate types "SHARP(A&~B)" and "SHARPL(~A&B)", all the current methods have to be modified.
