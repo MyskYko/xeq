@@ -1,0 +1,178 @@
+alpha/case 1:
+     gf:
+     	before: i/o =   58/   31  lat =    0  and =    924  lev = 69
+	after: i/o =   58/   31  lat =    0  and =    751  lev = 67
+	
+     rf:
+	before: i/o =   48/   20  lat =    0  and =    899  lev = 30
+	after: i/o =   48/   20  lat =    0  and =    797  lev = 30
+
+
+alpha/case 2:
+     gf:
+	before: i/o =   58/   31  lat =    0  and =    924  lev = 69
+	after: i/o =   58/   31  lat =    0  and =    751  lev = 67
+	
+     rf:
+	before: i/o =   48/   20  lat =    0  and =   917  lev = 30
+	after: i/o =   48/   20  lat =    0  and =    814  lev = 30
+
+
+alpha/case 3:
+     gf:
+     	before: i/o =   80/   33  lat =    0  and =   6757  lev = 216
+	after: i/o =   80/   33  lat =    0  and =   5450  lev =210
+	
+     rf:
+	before: i/o =   64/   32  lat =    0  and =   5915  lev = 62
+	after: i/o =   64/   32  lat =    0  and =   5225  lev = 59
+
+
+alpha/case 4:
+     gf:
+	before: i/o =   80/   33  lat =    0  and =   6757  lev = 216
+	after: i/o =   80/   33  lat =    0  and =   5450  lev =210
+	
+     rf:
+	before: i/o =   64/   32  lat =    0  and =   5964  lev = 62
+	after: i/o =   64/   32  lat =    0  and =   5252  lev = 61
+
+
+alpha/case 5:
+     gf:
+     	before: i/o =  192/   32  lat =    0  and =   5643  lev =120
+	after: i/o =  192/   32  lat =    0  and =   4693  lev =118
+	
+     rf:
+	before: i/o =  160/   32  lat =    0  and =    5465  lev = 50
+	after: i/o =  160/   32  lat =    0  and =   4846  lev = 48
+
+
+alpha/case 6:
+     gf:
+	before: i/o =  192/   32  lat =    0  and =    5643  lev =120
+	after: i/o =  192/   32  lat =    0  and =   4693  lev =118
+	
+     rf:
+	before: i/o =  160/   32  lat =    0  and =    5465  lev = 50
+	after: i/o =  160/   32  lat =    0  and =   4846  lev = 48
+
+
+alpha/case 7:
+     gf:
+     	before: i/o =  128/   59  lat =    0 and =  10607  lev =148
+	after: i/o =  128/   59  lat =    0  and =   8572  lev =145
+	
+     rf:
+	before: i/o =  128/   92  lat =    0  and =  10479  lev = 93
+	after: i/o =  128/   92  lat =    0  and =   8325  lev = 92
+
+
+alpha/case 8:
+     gf:
+	before: i/o = 8313/  162  lat =    0  and =  62507  lev =624
+	after: i/o = 8313/  162  lat =    0  and =  56145  lev =549
+	
+     rf:
+	before: i/o = 8214/   93  lat =    0  and =  58277  lev = 97
+	after: i/o = 8214/   93  lat =    0  and =  55470  lev = 94
+
+
+alpha/case 9:
+     gf:
+     	before: i/o =  127/   90  lat =    0  and =  23556  lev =197
+	after: i/o =  127/   90  lat =    0  and =  19127  lev =165
+	
+     rf:
+	before: i/o =  127/   90  lat =    0  and =  23555  lev =201
+	after: i/o =  127/   90  lat =    0  and =  19127  lev =167
+
+
+beta/case 1:
+     gf:
+	before: i/o =  375/  239  lat =    0  and =  73309  lev =390
+	after: i/o =  375/  239  lat =    0  and =  60351  lev =386
+	
+     rf:
+	before: i/o =  256/  119  lat =    0  and =  33654  lev = 65
+	after: i/o =  256/  119  lat =    0  and =  30452  lev = 65
+
+
+beta/case 2:
+     gf:
+     	before: i/o =  341/  171  lat =    0  and =  72233  lev =366
+	after: i/o =  341/  171  lat =    0  and =  59523  lev =312
+	
+     rf:
+	before: i/o =  256/   85  lat =    0  and =  32890  lev = 67
+	after: i/o =  256/   85  lat =    0  and =  29841  lev = 64
+
+
+beta/case 3:
+     gf:
+	before: i/o =  824/  278  lat =    0  and =  19428  lev = 76
+	after: i/o =  824/  278  lat =    0  and =  15214  lev = 72
+	
+     rf:
+	before: i/o =  614/   54  lat =    0  and =  15262  lev = 64
+	after: i/o =  614/   54  lat =    0  and =  13942  lev = 63
+
+
+beta/case 4:
+     gf:
+     	before: i/o =  824/  292  lat =    0  and =  19570  lev = 76
+	after: i/o =  824/  292  lat =    0  and =  15360  lev = 72
+	
+     rf:
+	before: i/o =  824/  292  lat =    0  and =  18298  lev = 76
+	after: i/o =  824/  292  lat =    0  and =  15326  lev = 72
+
+
+beta/case 5:
+     gf:
+	before: i/o =  129/    2  lat =    0  and =  36179  lev =270
+	after: i/o =  129/    2  lat =    0  and =  29850  lev =264
+	
+     rf:
+	before: i/o =  129/    2  lat =    0  and =  36173  lev =270
+	after: i/o =  129/    2  lat =    0  and =  29846  lev =264
+
+
+beta/case 6:
+     gf:
+     	before: i/o =  321/  249  lat =    0  and =  73126  lev =390
+	after: i/o =  321/  249  lat =    0  and =  60167  lev =385
+	
+     rf:
+	before: i/o =  193/  120  lat =    0  and =  75073  lev =265
+	after: i/o =  193/  120  lat =    0  and =  61288  lev =262
+
+
+beta/case 7:
+     gf:
+	before: i/o = 3831/ 3376  lat =    0  and =  38307  lev = 92
+	after: i/o = 3831/ 3376  lat =    0  and =  27314  lev = 65
+	
+     rf:
+	before: i/o = 3285/ 2765  lat =    0  and =  21348  lev = 61
+	after: i/o = 3285/ 2765  lat =    0  and =  18080  lev = 44
+
+
+beta/case 8:
+     gf:
+     	before: i/o =  130/  115  lat =    0  and =  36502  lev =265
+	after: i/o =  130/  115  lat =    0  and =  30073  lev =265
+
+     rf:
+	before: i/o =  128/  115  lat =    0  and =  31908  lev = 52
+	after: i/o =  128/  115  lat =    0  and =  28785  lev = 50
+
+
+beta/case 9:
+     gf:
+	before: i/o =  219/    4  lat =    0  and =    720  lev = 17
+	after: i/o =  219/    4  lat =    0  and =    551  lev = 13
+
+     rf:
+	before: i/o =  219/    4  lat =    0  and =   1323  lev = 18
+	after: i/o =  219/    4  lat =    0  and =   1185  lev = 17
