@@ -17,7 +17,7 @@ namespace nodecircuit {
     }
   }
 
-void Circuit::ReadVerilog(string filename) {
+  void Circuit::ReadVerilog(string filename) {
     ifstream f(filename);
     if(!f) return;
     string line;
@@ -69,7 +69,7 @@ void Circuit::ReadVerilog(string filename) {
 	while(getline(ss, item, ',')) {
 	  Node *p = CreateNode(item);
 	  p->is_input = true;
-	  inputs.push_back(p);
+	  inputs.push_back(p);	  
 	}
       }
       else if(head == "output") {
@@ -88,90 +88,212 @@ void Circuit::ReadVerilog(string filename) {
 	break;
       }
       else { // gates
-	if(head == "_DC" || head == "_HMUX") {	  
-	  if (line.find(".") != string::npos) {
-	    pos = line.find(".");	    
-	    line = line.substr(pos+3);
-	    pos = line.find(")");
-	    string item = line.substr(0,pos);
-	    Node *p = GetOrCreateNode(item);	    
-	    while (line.find(".") != string::npos) {
-	      pos = line.find(".");
-	      line = line.substr(pos+1);
-	      line = " " + line;
-	      pos = line.find(")");
-	      string item = line.substr(0,pos);
-	      Node *q = GetOrCreateNode(item);
-	      p->inputs.push_back(q);
-	      q->outputs.push_back(p);
-	    }
-	    if (head == "_DC")
-	      p->type = NODE_DC;
-	    else
-	      p->type = NODE_MUX;
-	  }
-	  else {
-	    pos = line.find("(");
-	    line = line.substr(pos+1);
-	    pos = line.find(")");
-	    line = line.substr(0,pos);
-	    stringstream ss(line);
-	    string item;
-	    getline(ss, item, ',');
-	    Node *p = GetOrCreateNode(item);
-	    while(getline(ss, item, ',')) {
-	      Node *q = GetOrCreateNode(item);
-	      p->inputs.push_back(q);
-	      q->outputs.push_back(p);
-	    }
-	    if (head == "_DC")
-	      p->type = NODE_DC;
-	    else
-	      p->type = NODE_MUX;
-	  }	  
+	pos = line.find("(");
+	line = line.substr(pos+1);
+	pos = line.find(")");
+	line = line.substr(0,pos);
+	stringstream ss(line);
+	string item;
+	getline(ss, item, ',');
+	Node *p = GetOrCreateNode(item);
+	while(getline(ss, item, ',')) {
+	  Node *q = GetOrCreateNode(item);
+	  p->inputs.push_back(q);
+	  q->outputs.push_back(p);
 	}
-	else {	  
-	  pos = line.find("(");
-	  line = line.substr(pos+1);
-	  pos = line.find(")");
-	  line = line.substr(0,pos);
-	  stringstream ss(line);
-	  string item;
-	  getline(ss, item, ',');
-	  Node *p = GetOrCreateNode(item);
-	  while(getline(ss, item, ',')) {
-	    Node *q = GetOrCreateNode(item);
-	    p->inputs.push_back(q);
-	    q->outputs.push_back(p);
+	if(head == "and") {
+	  p->type = NODE_AND;
+	}
+	else if(head == "or") {
+	  p->type = NODE_OR;
+	}
+	else if(head == "nand") {
+	  p->type = NODE_NAND;
+	}
+	else if(head == "nor") {
+	  p->type = NODE_NOR;
+	}
+	else if(head == "not") {
+	  p->type = NODE_NOT;
+	}
+	else if(head == "buf") {
+	  p->type = NODE_BUF;
+	}
+	else if(head == "xor") {
+	  p->type = NODE_XOR;
+	}
+	else if(head == "xnor") {
+	  p->type = NODE_XNOR;
+	}
+	else if(head == "_DC") {
+	  p->type = NODE_DC;	  
+	}
+	else if(head == "_HMUX") {
+	  p->type = NODE_MUX;
+	}
+	else {
+	  throw "undefined type " + head;
+	}
+      }
+    }
+  }
+
+  void Circuit::ReadVerilogNew(string filename) {
+    ifstream f(filename);
+    if(!f) return;
+    string line;
+    string::size_type pos;
+
+    while(getline(f, line)) {
+      removecomment(line);      
+      while(!line.empty() && isspace(line[0])) {
+	line = line.substr(1);
+      }
+      if(line.empty()) continue;
+      pos = line.find(" ");
+      string head;
+      if(pos == string::npos) {
+	head = line;
+	line = "";
+      }
+      else {
+	head = line.substr(0, pos);
+	line = line.substr(pos);
+      }
+      pos = line.find(";");
+      if(pos == string::npos) {
+	string nextline;
+	while(getline(f, nextline)) {
+	  removecomment(nextline);
+	  pos = nextline.find(";");
+	  if(pos == string::npos) {
+	    line += nextline;
+	    continue;
 	  }
-	  if(head == "and") {
-	    p->type = NODE_AND;
-	  }
-	  else if(head == "or") {
-	    p->type = NODE_OR;
-	  }
-	  else if(head == "nand") {
-	    p->type = NODE_NAND;
-	  }
-	  else if(head == "nor") {
-	    p->type = NODE_NOR;
-	  }
-	  else if(head == "not") {
-	    p->type = NODE_NOT;
-	  }
-	  else if(head == "buf") {
-	    p->type = NODE_BUF;
-	  }
-	  else if(head == "xor") {
-	    p->type = NODE_XOR;
-	  }
-	  else if(head == "xnor") {
-	    p->type = NODE_XNOR;
+	  line += nextline.substr(0, pos);	  
+	  break;
+	}
+      }
+      else {
+	line = line.substr(0, pos);
+      }
+      line.erase(remove_if(line.begin(), line.end(),  [](unsigned char x){return isspace(x);}), line.end());
+      if(head == "input") {
+	stringstream ss(line);
+	string item;
+	while(getline(ss, item, ',')) {
+	  Node *p = CreateNode(item);
+	  p->is_input = true;
+	  inputs.push_back(p);	  
+	}
+      }
+      else if (head == "output") {
+	stringstream ss(line);
+	string item;
+	while(getline(ss, item, ',')) {
+	  Node *p = CreateNode(item);
+	  p->is_output = true;
+	  outputs.push_back(p);
+	}
+      }      
+      else if (head == "endmodule") {
+	break;
+      }
+      else if(head == "_DC") {
+	pos = line.find("(");
+	line = line.substr(pos + 1);
+	pos = line.find(")");
+	line = line.substr(0, pos);
+	stringstream ss(line);
+	string item;
+	getline(ss, item, ',');
+	Node *p = GetOrCreateNode(item);
+	while(getline(ss, item, ',')) {
+	  Node *q = GetOrCreateNode(item);
+	  p->inputs.push_back(q);
+	  q->outputs.push_back(p);
+	}
+	p->type = NODE_DC;
+      }
+
+      else { // gates other than DC
+	string item;
+	pos = line.find("=");
+	item = line.substr(0, pos);
+	line = line.substr(pos + 1);	
+	Node *p = GetOrCreateNode(item);
+	int op = 0;
+	if ((pos = line.find("&")) != string::npos) 
+	  op = 1;    // SHARPL, SHARP, AND, NOR
+	else if ((pos = line.find("|")) != string::npos) 
+	  op = 2;    //  OR, NAND
+	else if ((pos = line.find("^")) != string::npos) 
+	  op = 3;    // XOR, XNOR
+	else if ((pos = line.find("~")) != string::npos) 
+	  op = 4;    // NOT
+	if (op != 0 && op != 4) {
+	  bool former = true;
+	  bool latter = true;
+	  item = line.substr(0, pos);
+	  line = line.substr(pos + 1);
+	  if (item[0] == '~') {
+	    item = item.substr(1);
+	    former = false;
+	  }	    
+	  if (line[0] == '~') {
+	    line = line.substr(1);
+	    latter = false;
 	  }	  
-	  else {
-	    throw "undefined type " + head;
+	  
+	  Node *q1 = GetOrCreateNode(item);
+	  p->inputs.push_back(q1);
+	  q1->outputs.push_back(p);
+	  Node *q2 = GetOrCreateNode(line);
+	  p->inputs.push_back(q2);
+	  q2->outputs.push_back(p);
+	  
+	  switch (op) {
+	  case 1:
+	    if (former && latter)
+	      p->type = NODE_AND;
+	    else if (former && !latter)
+	      p->type = NODE_SHARP;
+	    else if (!former && latter)
+	      p->type = NODE_SHARPL;
+	    else
+	      p->type = NODE_NOR;
+	    break;
+	  case 2:
+	    assert(former != latter);
+	    if (former)
+	      p->type = NODE_OR;
+	    else
+	      p->type = NODE_NAND;
+	    break;
+	  case 3:
+	    assert (!latter);
+	    if (former)
+	      p->type = NODE_XOR;
+	    else
+	      p->type = NODE_XNOR;	    
 	  }
 	}
+	else if (op = 4) {
+	  item = line.substr(pos + 1);	  
+	  Node *q = GetOrCreateNode(item);
+	  p->inputs.push_back(q);
+	  q->outputs.push_back(p);
+	  p->type = NODE_NOT;
+	}
+	else {
+	  // CONST or Unknown cases
+	  if ((pos = line.find("b0")) != string::npos)
+	    p->type = NODE_CONST0;
+	  else if ((pos = line.find("b1")) != string::npos)
+	    p->type = NODE_CONST1;
+	  else
+	    throw "undefined type " + line;
+	}        
       }
     }
   }
@@ -204,13 +326,16 @@ void Circuit::ReadVerilog(string filename) {
     p->mark = true;
   }
   
-  void Circuit::GetGates(NodeVector &gates) {
-    gates.clear();
+  void Circuit::GetGates(NodeVector &gates) const {
     Unmark();
     for(auto p : outputs) {
       GetGatesRec(p, gates);
     }
+  }
+  
+  void Circuit::GetGates(NodeVector &gates, Node *p) const {
     Unmark();
+    GetGatesRec(p, gates);
   }
 
   void Circuit::Simulate(std::vector<int> const &pat, std::vector<int> &fs, std::vector<int> &gs, std::map<Node *, int> *fp,  std::map<Node *, int> *gp) {
@@ -320,6 +445,10 @@ void Circuit::ReadVerilog(string filename) {
 	g[p] = (f[p->inputs[2]] & g[p->inputs[1]]) | (~f[p->inputs[2]] & g[p->inputs[0]]) |
 	  (g[p->inputs[2]] & (g[p->inputs[1]] | g[p->inputs[0]] | (f[p->inputs[1]] ^ f[p->inputs[0]])));
 	break;
+      case nodecircuit::NODE_ISX:
+	f[p] = g[p->inputs[0]];
+	g[p] = 0;
+	break;
       default:
 	throw "unkown gate type";
 	break;
@@ -336,6 +465,109 @@ void Circuit::ReadVerilog(string filename) {
     }
     if(!ggiven) {
       delete gp;
+    }
+  }
+
+  void Miter(Circuit const &g, Circuit const &r, Circuit &miter) {
+    std::map<Node *, Node *> m;
+    // inputs
+    for(int i = 0; i < g.inputs.size(); i++) {
+      Node *q = miter.CreateNode(g.inputs[i]->name);
+      q->is_input = true;
+      miter.inputs.push_back(q);
+      m[g.inputs[i]] = q;
+      if(g.inputs[i]->name != r.inputs[i]->name) {
+	throw "input name mismatch";	
+      }
+      m[r.inputs[i]] = q;
+    }
+    // gates in g
+    NodeVector gates;
+    g.GetGates(gates);
+    for(Node *p : gates) {
+      Node *q;
+      if(p->type == NODE_OTHER) {
+	q = miter.GetOrCreateNode(p->name);
+      }
+      else {
+	q = miter.CreateNode("xeq_g_" + p->name);
+	q->type = p->type;
+	for(Node *i : p->inputs) {
+	  q->inputs.push_back(m[i]);
+	}
+	for(Node *o : p->outputs) {
+	  q->outputs.push_back(m[o]);
+	}
+      }
+      m[p] = q;
+    }
+    // gates in r
+    gates.clear();
+    r.GetGates(gates);
+    for(Node *p : gates) {
+      Node *q;
+      if(p->type == NODE_OTHER) {
+	q = miter.GetOrCreateNode(p->name);
+      }
+      else {
+	q = miter.CreateNode("xeq_r_" + p->name);
+	q->type = p->type;
+	for(Node *i : p->inputs) {
+	  q->inputs.push_back(m[i]);
+	}
+	for(Node *o : p->outputs) {
+	  q->outputs.push_back(m[o]);
+	}
+      }
+      m[p] = q;
+    }
+    // outputs
+    // check x compatibility (gx = 1 -> rx = 1)
+    for(int i = 0; i < g.outputs.size(); i++) {
+      std::string name = g.outputs[i]->name;
+      Node *gisx = miter.CreateNode("xeq_isx_g_" + name);
+      gisx->type = NODE_ISX;
+      gisx->inputs.push_back(m[g.outputs[i]]);
+      m[g.outputs[i]]->outputs.push_back(gisx);
+      Node *risx = miter.CreateNode("xeq_isx_r_" + name);
+      risx->type = NODE_ISX;
+      risx->inputs.push_back(m[r.outputs[i]]);
+      m[r.outputs[i]]->outputs.push_back(risx);
+      Node *bothx = miter.CreateNode("xeq_bothx_" + name);
+      bothx->type = NODE_AND;
+      bothx->inputs.push_back(gisx);
+      gisx->outputs.push_back(bothx);
+      bothx->inputs.push_back(risx);
+      risx->outputs.push_back(bothx);
+      bothx->is_output = true;
+      miter.outputs.push_back(bothx);
+      risx->is_output = true;
+      miter.outputs.push_back(risx);
+    }
+    // xor equivalence
+    for(int i = 0; i < g.outputs.size(); i++) {
+      std::string name = g.outputs[i]->name;
+      Node *gisx = miter.GetNode("xeq_isx_g_" + name);
+      Node *gisnx = miter.CreateNode("xeq_isnx_g_" + name);
+      gisnx->type = NODE_NOT;
+      gisnx->inputs.push_back(gisx);
+      gisx->outputs.push_back(gisnx);
+      Node *gand = miter.CreateNode("xeq_and_g_" + name);
+      gand->type = NODE_AND;
+      gand->inputs.push_back(gisnx);
+      gisnx->outputs.push_back(gand);
+      gand->inputs.push_back(m[g.outputs[i]]);
+      m[g.outputs[i]]->outputs.push_back(gand);
+      Node *rand = miter.CreateNode("xeq_and_r_" + name);
+      rand->type = NODE_AND;
+      rand->inputs.push_back(gisnx);
+      gisnx->outputs.push_back(rand);
+      rand->inputs.push_back(m[r.outputs[i]]);
+      m[r.outputs[i]]->outputs.push_back(rand);
+      gand->is_output = true;
+      miter.outputs.push_back(gand);
+      rand->is_output = true;
+      miter.outputs.push_back(rand);
     }
   }
 }
