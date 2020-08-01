@@ -106,7 +106,7 @@ void Verilog2BLIF(string filename, vector<string> &inputs, vector<string> &outpu
 	assert(names.size() == 3);
 	bool flag = false;
 	for (int i = 0; i < inputs_extend.size(); i++) {
-	  if (names[0] == inputs_extend[i]) {
+	  if (names[0] == inputs_extend[i] || names[0][0] == '\'') {
 	    break;
 	  }
 	  if (i == inputs_extend.size() - 1) {
@@ -118,7 +118,7 @@ void Verilog2BLIF(string filename, vector<string> &inputs, vector<string> &outpu
 	}
 	flag = false;
 	for (int i = 0; i < outputs_extend.size(); i++) {
-	  if (names[1] == outputs_extend[i]) {
+	  if (names[1] == outputs_extend[i] || names[1][0] == '\'') {
 	    break;
 	  }
 	  if (i == outputs_extend.size() - 1) {
@@ -130,7 +130,7 @@ void Verilog2BLIF(string filename, vector<string> &inputs, vector<string> &outpu
 	}
 	flag = false;
 	for (int i = 0; i < outputs_extend.size(); i++) {
-	  if (names[2] == outputs_extend[i]) {
+	  if (names[2] == outputs_extend[i] || names[2][0] == '\'') {
 	    break;
 	  }
 	  if (i == outputs_extend.size() - 1) {
