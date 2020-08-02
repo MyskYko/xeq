@@ -264,14 +264,14 @@ namespace nodecircuit {
 	      p->type = NODE_NOR;
 	    break;
 	  case 2:
-	    assert(former != latter);
+	    assert(former == latter);
 	    if (former)
 	      p->type = NODE_OR;
 	    else
 	      p->type = NODE_NAND;
 	    break;
 	  case 3:
-	    assert (!latter);
+	    assert (latter);
 	    if (former)
 	      p->type = NODE_XOR;
 	    else
