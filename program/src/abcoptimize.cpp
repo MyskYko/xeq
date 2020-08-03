@@ -6,6 +6,9 @@
 #include <aig/aig/aig.h>
 #include <opt/dar/dar.h>
 #include <aig/gia/giaAig.h>
+#include <base/main/main.h>
+#include <base/main/mainInt.h>
+#include <map/mio/mio.h>
 
 #include "abcoptimize.h"
 
@@ -131,7 +134,7 @@ void AbcOptimize(nodecircuit::Circuit &ckt, nodecircuit::Circuit &ckt2) {
   }
 
   {
-    bool fmap = 0;
+    bool fmap = 1;
     
     if(!fmap) {
       int i;
@@ -228,30 +231,128 @@ void AbcOptimize(nodecircuit::Circuit &ckt, nodecircuit::Circuit &ckt2) {
 	p->inputs.push_back(p0);
 	p0->outputs.push_back(p);
       }
-      assert(ckt.inputs.size() == ckt2.inputs.size());
-      assert(ckt.outputs.size() == ckt2.outputs.size());
-      return;
-  }
-  else {
-    std::ofstream libfile("xag.genlib");
-    libfile << "GATE zero	0	O=CONST0;" << std::endl;
-    libfile << "GATE one	0	O=CONST1;" << std::endl;
-    libfile << "GATE buf	0	O=a;		PIN * INV 1 999 0.9 0.3 0.9 0.3" << std::endl;
-    libfile << "GATE not	0	O=!a;		PIN * INV 1 999 0.9 0.3 0.9 0.3" << std::endl;
-    libfile << "GATE and	2	O=a*b;	PIN * INV 1 999 1.0 0.2 1.0 0.2" << std::endl;
-    libfile << "GATE xor	2	O=a*!b+!a*b;	PIN * INV 1 999 1.0 0.2 1.0 0.2" << std::endl;
-    libfile.close();
-
-    /*
-    Abc_Frame_t *pAbc = Abc_FrameGetGlobalFrame();
-    if(pAbc->pGia) {
-      Gia_ManStop(pAbc->pGia);
     }
-    pAbc->pGia = pGia;
-    std::string command = "&put: read_library xag.genlib; map -a";
-    Cmd_CommandExecute(pAbc, command.c_str());
-    Abc_Ntk_t *pNtk = Abc_FrameReadNtk(pAbc);
-    */
+    else {
+      std::ofstream libfile("xag.genlib");
+      libfile << "GATE zero	0	O=CONST0;" << std::endl;
+      libfile << "GATE one	0	O=CONST1;" << std::endl;
+      libfile << "GATE buf	0	O=a;		PIN * INV 1 999 0.9 0.3 0.9 0.3" << std::endl;
+      libfile << "GATE not	0	O=!a;		PIN * INV 1 999 0.9 0.3 0.9 0.3" << std::endl;
+      libfile << "GATE and	2	O=a*b;	PIN * INV 1 999 1.0 0.2 1.0 0.2" << std::endl;
+      libfile << "GATE xor	2	O=a*!b+!a*b;	PIN * INV 1 999 1.0 0.2 1.0 0.2" << std::endl;
+      libfile.close();
+      
+      Abc_Frame_t *pAbc = Abc_FrameGetGlobalFrame();
+      if(pAbc->pGia) {
+	Gia_ManStop(pAbc->pGia);
+      }
+      pAbc->pGia = pGia;
+      std::string command = "&put; read_library xag.genlib; map -a";
+      Cmd_CommandExecute(pAbc, command.c_str());
+      Abc_Ntk_t *pNtk = Abc_FrameReadNtk(pAbc);
+      assert(Abc_NtkHasMapping(pNtk));
+
+      int i;
+      Abc_Obj_t *pObj;
+      std::map<int, nodecircuit::Node *> m;
+      std::map<int, int> rev_cutmap;
+      std::string prefix = "abc_opt_new";
+      int ngates = 0;
+      // inputs
+      Abc_NtkForEachCi(pNtk, pObj, i) {
+	nodecircuit::Node *p;
+	if(dcgates.count(i)) {
+	  p = ckt2.CreateNode(prefix + std::to_string(ngates++));
+	  p->type = nodecircuit::NODE_DC;
+	  rev_cutmap[dcgates[i]] = i;
+	  rev_cutmap[dcgates[i] + 1] = i;
+	}
+	else if(muxs.count(i)) {
+	  p = ckt2.CreateNode(prefix + std::to_string(ngates++));
+	  p->type = nodecircuit::NODE_MUX;
+	  rev_cutmap[muxs[i]] = i;
+	  rev_cutmap[muxs[i] + 1] = i;
+	  rev_cutmap[muxs[i] + 2] = i;
+	}
+	else if(isxs.count(i)) {
+	  p = ckt2.CreateNode(prefix + std::to_string(ngates++));
+	  p->type = nodecircuit::NODE_ISX;
+	  rev_cutmap[isxs[i]] = i;
+	}
+	else if(xs.count(i)) {
+	  p = ckt2.GetOrCreateNode("1'bx");
+	}
+	else {
+	  p = ckt2.CreateNode(ckt.inputs[ckt2.inputs.size()]->name);
+	  p->is_input = true;
+	  ckt2.inputs.push_back(p);
+	}
+	m[Abc_ObjId(pObj)] = p;
+      }
+      // gates
+      Abc_NtkForEachNode(pNtk, pObj, i) {
+	nodecircuit::Node *p, *p0, *p1;
+	Mio_Gate_t *pGate = (Mio_Gate_t *)pObj->pData;
+	std::string gatename(Mio_GateReadName(pGate));
+	if(gatename == "zero") {
+	  p = ckt2.GetOrCreateNode("1'b0");
+	}
+	else if(gatename == "one") {
+	  p = ckt2.GetOrCreateNode("1'b1");
+	}
+	else if(gatename == "buf") {
+	  p = m[Abc_ObjFaninId0(pObj)];
+	}
+	else if(gatename == "not") {
+	  p = ckt2.CreateNode(prefix + std::to_string(ngates++));
+	  p->type = nodecircuit::NODE_NOT;
+	  p0 = m[Abc_ObjFaninId0(pObj)];
+	  p->inputs.push_back(p0);
+	  p0->outputs.push_back(p);
+	}
+	else if(gatename == "and") {
+	  p = ckt2.CreateNode(prefix + std::to_string(ngates++));
+	  p->type = nodecircuit::NODE_AND;
+	  p0 = m[Abc_ObjFaninId0(pObj)];
+	  p1 = m[Abc_ObjFaninId1(pObj)];
+	  p->inputs.push_back(p0);
+	  p0->outputs.push_back(p);
+	  p->inputs.push_back(p1);
+	  p1->outputs.push_back(p);
+	}
+	else if(gatename == "xor") {
+	  p = ckt2.CreateNode(prefix + std::to_string(ngates++));
+	  p->type = nodecircuit::NODE_XOR;
+	  p0 = m[Abc_ObjFaninId0(pObj)];
+	  p1 = m[Abc_ObjFaninId1(pObj)];
+	  p->inputs.push_back(p0);
+	  p0->outputs.push_back(p);
+	  p->inputs.push_back(p1);
+	  p1->outputs.push_back(p);
+	}
+	else {
+	  throw "unknown node type : " + gatename;
+	}
+	m[Abc_ObjId(pObj)] = p;
+      }
+      // outputs
+      Abc_NtkForEachCo(pNtk, pObj, i) {
+	nodecircuit::Node *p, *p0;
+	p0 = m[Abc_ObjFaninId0(pObj)];
+	if(rev_cutmap.count(i)) {
+	  p = m[Abc_ObjId(Abc_NtkCi(pNtk, rev_cutmap[i]))];
+	}
+	else {
+	  p = ckt2.CreateNode(ckt.outputs[ckt2.outputs.size()]->name);
+	  p->type = nodecircuit::NODE_BUF;
+	  p->is_output = true;
+	  ckt2.outputs.push_back(p);
+	}
+	p->inputs.push_back(p0);
+	p0->outputs.push_back(p);
+      }
+    }
+    assert(ckt.inputs.size() == ckt2.inputs.size());
+    assert(ckt.outputs.size() == ckt2.outputs.size());
   }
-}
 }
