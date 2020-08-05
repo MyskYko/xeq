@@ -247,7 +247,7 @@ void AbcOptimize(nodecircuit::Circuit &ckt, nodecircuit::Circuit &ckt2) {
 	Gia_ManStop(pAbc->pGia);
       }
       pAbc->pGia = pGia;
-      std::string command = "&put; read_library xag.genlib; map -a";
+      std::string command = "&put; read_library xag.genlib; map";
       Cmd_CommandExecute(pAbc, command.c_str());
       Abc_Ntk_t *pNtk = Abc_FrameReadNtk(pAbc);
       assert(Abc_NtkHasMapping(pNtk));
