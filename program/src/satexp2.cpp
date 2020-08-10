@@ -66,9 +66,13 @@ void SatExp2(nodecircuit::Circuit &gf, nodecircuit::Circuit &rf, std::vector<boo
 	}
 	g[p] = ~c0;
       }
+      else {
+	throw "invalid constant";
+      }
       break;
     case nodecircuit::NODE_BUF:
     case nodecircuit::NODE_NOT:
+      assert(p->inputs.size() == 1);
       {
 	bool isNot = p->type == nodecircuit::NODE_NOT;
 	f[p] = f[p->inputs[0]] ^ isNot;
@@ -185,6 +189,7 @@ void SatExp2(nodecircuit::Circuit &gf, nodecircuit::Circuit &rf, std::vector<boo
 	break;
       }
     case nodecircuit::NODE_DC:
+      assert(p->inputs.size() == 2);
       clause.clear();
       clause.push(g[p->inputs[0]]);
       clause.push(f[p->inputs[1]]);
@@ -229,6 +234,7 @@ void SatExp2(nodecircuit::Circuit &gf, nodecircuit::Circuit &rf, std::vector<boo
       }
       break;
     case nodecircuit::NODE_MUX:
+      assert(p->inputs.size() == 3);
       {
 	Glucose::Lit in0 = f[p->inputs[0]];
 	Glucose::Lit in0x = g[p->inputs[0]];
@@ -368,6 +374,7 @@ void SatExp2(nodecircuit::Circuit &gf, nodecircuit::Circuit &rf, std::vector<boo
 	break;
       }
     case nodecircuit::NODE_ISX:
+      assert(p->inputs.size() == 1);
       f[p] = g[p->inputs[0]];
       g[p] = c0;
       break;
