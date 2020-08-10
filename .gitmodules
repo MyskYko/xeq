@@ -7,3 +7,6 @@
 [submodule "program/lib/abc"]
 	path = program/lib/abc
 	url = https://github.com/berkeley-abc/abc.git
+[submodule "program/lib/cadical"]
+	path = program/lib/cadical
+	url = https://github.com/MyskYko/cadical.git
