@@ -31,7 +31,7 @@ void OrN(CaDiCaL::Solver &S, std::vector<int> &v, int r) {
   for(int i = 0; i < v.size(); i++) {
     S.add(-v[i]), S.add(r), S.add(0);
   }
-  v.push_back(~r);
+  v.push_back(-r);
   AddClause(S, v);
   v.pop_back();
 }
