@@ -10,3 +10,6 @@
 [submodule "program/lib/cadical"]
 	path = program/lib/cadical
 	url = https://github.com/MyskYko/cadical.git
+[submodule "program/lib/kissat"]
+	path = program/lib/kissat
+	url = https://github.com/MyskYko/kissat.git
