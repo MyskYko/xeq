@@ -10,7 +10,7 @@ include_directories(${CMAKE_CURRENT_SOURCE_DIR}/include)
 
 file(GLOB FILENAMES ${CMAKE_CURRENT_SOURCE_DIR}/src/*.cpp)
 add_executable(xeq ${FILENAMES})
-target_link_libraries(xeq bdd atbdd glucose libabc cadical)
+target_link_libraries(xeq bdd atbdd glucose libabc cadical kissat)
 target_include_directories(xeq PRIVATE ${CMAKE_CURRENT_SOURCE_DIR}/lib/glucose)
 
 add_executable(ceverify ${CMAKE_CURRENT_SOURCE_DIR}/misc/ceverify.cpp ${CMAKE_CURRENT_SOURCE_DIR}/src/node.cpp)
