@@ -3,60 +3,88 @@
 #include <cassert>
 
 #include <cadical.hpp>
+extern "C" {
+#include <kissat.h>
+}
 
 #include "satsolve.h"
 
-void AddClause(CaDiCaL::Solver &S, std::vector<int> const &v) {
-  for(int e : v) {
-    S.add(e);
-  }
-  S.add(0);
+void Add(CaDiCaL::Solver &S, int i) {
+  S.add(i);
+}
+int Solve(CaDiCaL::Solver &S) {
+  return S.solve();
+}
+bool Value(CaDiCaL::Solver &S, int i) {
+  return S.val(i) > 0;
 }
 
-void And2(CaDiCaL::Solver &S, int a, int b, int c) {
-  S.add(a), S.add(-c), S.add(0);
-  S.add(b), S.add(-c), S.add(0);
-  S.add(-a), S.add(-b), S.add(c), S.add(0);
+void Add(kissat *S, int i) {
+  kissat_add(S, i);
 }
-void Or2(CaDiCaL::Solver &S, int a, int b, int c) {
+int Solve(kissat *S) {
+  return kissat_solve(S);
+}
+bool Value(kissat *S, int i) {
+  return kissat_value(S, i) > 0;
+}
+
+template <typename solver>
+void AddClause(solver &S, std::vector<int> const &v) {
+  for(int e : v) {
+    Add(S, e);
+  }
+  Add(S, 0);
+}
+
+template <typename solver>
+void And2(solver &S, int a, int b, int c) {
+  Add(S, a), Add(S, -c), Add(S, 0);
+  Add(S, b), Add(S, -c), Add(S, 0);
+  Add(S, -a), Add(S, -b), Add(S, c), Add(S, 0);
+}
+template <typename solver>
+void Or2(solver &S, int a, int b, int c) {
   And2(S, -a, -b, -c);
 }
-void Xor2(CaDiCaL::Solver &S, int a, int b, int c) {
-  S.add(a), S.add(b), S.add(-c), S.add(0);
-  S.add(-a), S.add(-b), S.add(-c), S.add(0);
-  S.add(-a), S.add(b), S.add(c), S.add(0);
-  S.add(a), S.add(-b), S.add(c), S.add(0);
+template <typename solver>
+void Xor2(solver &S, int a, int b, int c) {
+  Add(S, a), Add(S, b), Add(S, -c), Add(S, 0);
+  Add(S, -a), Add(S, -b), Add(S, -c), Add(S, 0);
+  Add(S, -a), Add(S, b), Add(S, c), Add(S, 0);
+  Add(S, a), Add(S, -b), Add(S, c), Add(S, 0);
 }
-void OrN(CaDiCaL::Solver &S, std::vector<int> &v, int r) {
+template <typename solver>
+void OrN(solver &S, std::vector<int> &v, int r) {
   for(int i = 0; i < v.size(); i++) {
-    S.add(-v[i]), S.add(r), S.add(0);
+    Add(S, -v[i]), Add(S, r), Add(S, 0);
   }
   v.push_back(-r);
   AddClause(S, v);
   v.pop_back();
 }
-
-void Ite(CaDiCaL::Solver &S, int c, int t, int e, int r) {
-  S.add(-c), S.add(-t), S.add(r), S.add(0);
-  S.add(-c), S.add(t), S.add(-r), S.add(0);
-  S.add(c), S.add(-e), S.add(r), S.add(0);
-  S.add(c), S.add(e), S.add(-r), S.add(0);
-  S.add(-t), S.add(-e), S.add(r), S.add(0);
-  S.add(t), S.add(e), S.add(-r), S.add(0);
+template <typename solver>
+void Ite(solver &S, int c, int t, int e, int r) {
+  Add(S, -c), Add(S, -t), Add(S, r), Add(S, 0);
+  Add(S, -c), Add(S, t), Add(S, -r), Add(S, 0);
+  Add(S, c), Add(S, -e), Add(S, r), Add(S, 0);
+  Add(S, c), Add(S, e), Add(S, -r), Add(S, 0);
+  Add(S, -t), Add(S, -e), Add(S, r), Add(S, 0);
+  Add(S, t), Add(S, e), Add(S, -r), Add(S, 0);
 }
 
-int SatSolve2(nodecircuit::Circuit &gf, nodecircuit::Circuit &rf, std::vector<bool> &result, int gate_encoding, int output_encoding) {
+template <typename solver>
+int SatSolve2(solver &S, nodecircuit::Circuit &gf, nodecircuit::Circuit &rf, std::vector<bool> &result, int gate_encoding) {
   // create miter circuit
   nodecircuit::Circuit miter;
   nodecircuit::Miter(gf, rf, miter);
-  // prepare sat solver and node2index map
-  CaDiCaL::Solver S;
+  // prepare node2index map
   std::vector<int> clause;
   std::map<nodecircuit::Node *, int> f;
   std::map<nodecircuit::Node *, int> g;
   int nVars = 0;
   int c0 = ++nVars;
-  S.add(-c0), S.add(0);
+  Add(S, -c0), Add(S, 0);
   // inputs
   for(auto p : miter.inputs) {
     f[p] = ++nVars;
@@ -126,7 +154,7 @@ int SatSolve2(nodecircuit::Circuit &gf, nodecircuit::Circuit &rf, std::vector<bo
 	    And2(S, in0, in1, out);
 	    break;
 	  case 3:
-	    S.add(-outx), S.add(-out), S.add(0);
+	    Add(S, -outx), Add(S, -out), Add(S, 0);
 	  case 4:
 	    clause.clear();
 	    clause.push_back(outx);
@@ -134,8 +162,8 @@ int SatSolve2(nodecircuit::Circuit &gf, nodecircuit::Circuit &rf, std::vector<bo
 	    clause.push_back(-in1);
 	    clause.push_back(out);
 	    AddClause(S, clause);
-	    S.add(outx), S.add(in0), S.add(-out), S.add(0);
-	    S.add(outx), S.add(in1), S.add(-out), S.add(0);
+	    Add(S, outx), Add(S, in0), Add(S, -out), Add(S, 0);
+	    Add(S, outx), Add(S, in1), Add(S, -out), Add(S, 0);
 	    break;
 	  default:
 	    throw "undefined gate type";
@@ -165,10 +193,10 @@ int SatSolve2(nodecircuit::Circuit &gf, nodecircuit::Circuit &rf, std::vector<bo
 	  case 1:
 	  case 2:
 	    f[p] = ++nVars;
-	    S.add(g[p]), S.add(-in0), S.add(f[p]), S.add(0);
-	    S.add(g[p]), S.add(in0), S.add(-f[p]), S.add(0);
+	    Add(S, g[p]), Add(S, -in0), Add(S, f[p]), Add(S, 0);
+	    Add(S, g[p]), Add(S, in0), Add(S, -f[p]), Add(S, 0);
 	    if(gate_encoding == 1) {
-	      S.add(-g[p]), S.add(-f[p]), S.add(0);
+	      Add(S, -g[p]), Add(S, -f[p]), Add(S, 0);
 	    }
 	    break;
 	  default:
@@ -203,10 +231,10 @@ int SatSolve2(nodecircuit::Circuit &gf, nodecircuit::Circuit &rf, std::vector<bo
 	  case 3:
 	  case 4:
 	    f[p] = ++nVars;
-	    S.add(g[p]), S.add(-in0), S.add(f[p]), S.add(0);
-	    S.add(g[p]), S.add(in0), S.add(-f[p]), S.add(0);
+	    Add(S, g[p]), Add(S, -in0), Add(S, f[p]), Add(S, 0);
+	    Add(S, g[p]), Add(S, in0), Add(S, -f[p]), Add(S, 0);
 	    if(gate_encoding == 1 || gate_encoding == 3) {
-	      S.add(-g[p]), S.add(-f[p]), S.add(0);
+	      Add(S, -g[p]), Add(S, -f[p]), Add(S, 0);
 	    }
 	    break;
 	  default:
@@ -229,10 +257,10 @@ int SatSolve2(nodecircuit::Circuit &gf, nodecircuit::Circuit &rf, std::vector<bo
       case 1:
       case 2:
 	f[p] = ++nVars;
-	S.add(g[p]), S.add(-f[p->inputs[0]]), S.add(f[p]), S.add(0);
-	S.add(g[p]), S.add(f[p->inputs[0]]), S.add(-f[p]), S.add(0);
+	Add(S, g[p]), Add(S, -f[p->inputs[0]]), Add(S, f[p]), Add(S, 0);
+	Add(S, g[p]), Add(S, f[p->inputs[0]]), Add(S, -f[p]), Add(S, 0);
 	if(gate_encoding == 1) {
-	  S.add(-g[p]), S.add(-f[p]), S.add(0);
+	  Add(S, -g[p]), Add(S, -f[p]), Add(S, 0);
 	}
 	break;
       case 3:
@@ -250,9 +278,9 @@ int SatSolve2(nodecircuit::Circuit &gf, nodecircuit::Circuit &rf, std::vector<bo
 	clause.push_back(-f[p]);
 	AddClause(S, clause);
 	if(gate_encoding == 3) {
-	  S.add(-g[p->inputs[0]]), S.add(-f[p]), S.add(0);
-	  S.add(-f[p->inputs[1]]), S.add(-f[p]), S.add(0);
-	  S.add(-g[p->inputs[1]]), S.add(-f[p]), S.add(0);
+	  Add(S, -g[p->inputs[0]]), Add(S, -f[p]), Add(S, 0);
+	  Add(S, -f[p->inputs[1]]), Add(S, -f[p]), Add(S, 0);
+	  Add(S, -g[p->inputs[1]]), Add(S, -f[p]), Add(S, 0);
 	}
 	break;
       default:
@@ -302,8 +330,8 @@ int SatSolve2(nodecircuit::Circuit &gf, nodecircuit::Circuit &rf, std::vector<bo
 	clause.push_back(-in0);
 	clause.push_back(in1);
 	AddClause(S, clause);
-	S.add(-in2x), S.add(-in0x), S.add(g[p]), S.add(0);
-	S.add(-in2x), S.add(-in1x), S.add(g[p]), S.add(0);
+	Add(S, -in2x), Add(S, -in0x), Add(S, g[p]), Add(S, 0);
+	Add(S, -in2x), Add(S, -in1x), Add(S, g[p]), Add(S, 0);
 	// regardless S (necessary)
 	clause.clear();
 	clause.push_back(in0x);
@@ -317,7 +345,7 @@ int SatSolve2(nodecircuit::Circuit &gf, nodecircuit::Circuit &rf, std::vector<bo
 	clause.push_back(in1);
 	AddClause(S, clause);
 	// regardless S (unnecessary but maybe helpful)
-	S.add(-in0x), S.add(-in1x), S.add(g[p]), S.add(0);
+	Add(S, -in0x), Add(S, -in1x), Add(S, g[p]), Add(S, 0);
 	f[p] = ++nVars;
 	switch(gate_encoding) {
 	case 0:
@@ -328,10 +356,10 @@ int SatSolve2(nodecircuit::Circuit &gf, nodecircuit::Circuit &rf, std::vector<bo
 	  {
 	    int t = ++nVars;
 	    Ite(S, in2, in1, in0, t);
-	    S.add(g[p]), S.add(-t), S.add(f[p]), S.add(0);
-	    S.add(g[p]), S.add(t), S.add(-f[p]), S.add(0);
+	    Add(S, g[p]), Add(S, -t), Add(S, f[p]), Add(S, 0);
+	    Add(S, g[p]), Add(S, t), Add(S, -f[p]), Add(S, 0);
 	    if(gate_encoding == 1) {
-	      S.add(-g[p]), S.add(-f[p]), S.add(0);
+	      Add(S, -g[p]), Add(S, -f[p]), Add(S, 0);
 	    }
 	    break;
 	  }
@@ -373,8 +401,8 @@ int SatSolve2(nodecircuit::Circuit &gf, nodecircuit::Circuit &rf, std::vector<bo
 	    clause.push_back(-in0);
 	    clause.push_back(in1);
 	    AddClause(S, clause);
-	    S.add(-in2x), S.add(-in0x), S.add(-f[p]), S.add(0);
-	    S.add(-in2x), S.add(-in1x), S.add(-f[p]), S.add(0);
+	    Add(S, -in2x), Add(S, -in0x), Add(S, -f[p]), Add(S, 0);
+	    Add(S, -in2x), Add(S, -in1x), Add(S, -f[p]), Add(S, 0);
 	  }
 	  // regardless S (necessary)
 	  clause.clear();
@@ -391,7 +419,7 @@ int SatSolve2(nodecircuit::Circuit &gf, nodecircuit::Circuit &rf, std::vector<bo
 	  AddClause(S, clause);
 	  // regardless S (unnecessary but maybe helpful)
 	  if(gate_encoding == 3) {
-	    S.add(-in0x), S.add(-in1x), S.add(-f[p]), S.add(0);
+	    Add(S, -in0x), Add(S, -in1x), Add(S, -f[p]), Add(S, 0);
 	  }
 	  break;
 	default:
@@ -420,10 +448,10 @@ int SatSolve2(nodecircuit::Circuit &gf, nodecircuit::Circuit &rf, std::vector<bo
   }
   AddClause(S, clause);
   // solve
-  int r = S.solve();
+  int r = Solve(S);
   if(r == 10) {
     for(auto p : miter.inputs) {
-      if(S.val(f[p]) > 0) {
+      if(Value(S, f[p])) {
 	result.push_back(1);
       }
       else {
@@ -436,4 +464,20 @@ int SatSolve2(nodecircuit::Circuit &gf, nodecircuit::Circuit &rf, std::vector<bo
     return 0;
   }
   return 1;
+}
+
+int CadicalSolve(nodecircuit::Circuit &gf, nodecircuit::Circuit &rf, std::vector<bool> &result, int gate_encoding) {
+  CaDiCaL::Solver S;
+  return SatSolve2(S, gf, rf, result, gate_encoding);
+}
+
+int KissatSolve(nodecircuit::Circuit &gf, nodecircuit::Circuit &rf, std::vector<bool> &result, int gate_encoding, int target) {
+  kissat *S = kissat_init();
+  if(target == 1) {
+    kissat_set_configuration(S, "sat");
+  }
+  else if(target == 2) {
+    kissat_set_configuration(S, "unsat");
+  }
+  return SatSolve2(S, gf, rf, result, gate_encoding);
 }
