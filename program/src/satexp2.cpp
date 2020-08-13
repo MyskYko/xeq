@@ -4,7 +4,9 @@
 
 #include <simp/SimpSolver.h>
 
-#include "satexp2.h"
+#include "satsolve.h"
+
+const char *dimacsname = "miter.dimacs";
 
 extern void And2(Glucose::SimpSolver &S, Glucose::Lit a, Glucose::Lit b, Glucose::Lit c);
 extern void Or2(Glucose::SimpSolver &S, Glucose::Lit a, Glucose::Lit b, Glucose::Lit c);
@@ -20,7 +22,7 @@ void Ite(Glucose::SimpSolver &S, Glucose::Lit c, Glucose::Lit t, Glucose::Lit e,
   S.addClause(t, e, ~r);
 }
 
-void SatExp2(nodecircuit::Circuit &gf, nodecircuit::Circuit &rf, std::vector<bool> &result, int gate_encoding, int output_encoding) {
+void SatExp2(nodecircuit::Circuit &gf, nodecircuit::Circuit &rf, std::vector<bool> &result, int gate_encoding, std::vector<int> *dumpdimacs) {
   // create miter circuit
   nodecircuit::Circuit miter;
   nodecircuit::Miter(gf, rf, miter);
@@ -393,6 +395,28 @@ void SatExp2(nodecircuit::Circuit &gf, nodecircuit::Circuit &rf, std::vector<boo
     clause.push(o);
   }
   S.addClause(clause);
+  if(dumpdimacs) {
+    Glucose::vec<Glucose::Lit> as;
+    Glucose::vec<Glucose::Var> vmap;
+    S.toDimacs(dimacsname, as, vmap);
+    for(auto p : miter.inputs) {
+      Glucose::Var v = Glucose::var(f[p]);
+      if(vmap.size() > v && vmap[v] != -1) {
+	dumpdimacs->push_back(vmap[v]);
+      }
+      else {
+	if(S.value(v) == l_True) {
+	  dumpdimacs->push_back(-1);
+	}
+	else {
+	  assert(S.value(v) == l_False);
+	  dumpdimacs->push_back(-2);
+	}
+      }
+    }
+    return;
+  }
+  // solve
   bool r = S.solve();
   if(r) {
     for(auto p : miter.inputs) {

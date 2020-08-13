@@ -1,10 +1,12 @@
 #include <iostream>
 #include <functional>
+#include <cstring>
 #include <cassert>
 
 #include <cadical.hpp>
 extern "C" {
 #include <kissat.h>
+#include <application.h>
 }
 
 #include "satsolve.h"
@@ -481,3 +483,78 @@ int KissatSolve(nodecircuit::Circuit &gf, nodecircuit::Circuit &rf, std::vector<
   }
   return SatSolve2(S, gf, rf, result, gate_encoding);
 }
+
+int CadicalExp(nodecircuit::Circuit &gf, nodecircuit::Circuit &rf, std::vector<bool> &result, int gate_encoding) {
+  std::vector<int> inputs;
+  SatExp2(gf, rf, result, gate_encoding, &inputs);
+  CaDiCaL::Solver S;
+  int vars;
+  S.read_dimacs(dimacsname, vars);
+  int r = Solve(S);
+  if(r == 10) {
+    for(int v : inputs) {
+      if(v == -1) {
+	result.push_back(1);
+      }
+      else if(v == -2) {
+	result.push_back(0);
+      }
+      else if(Value(S, v + 1)) {
+	result.push_back(1);
+      }
+      else {
+	result.push_back(0);
+      }
+    }
+    return 0;
+  }
+  if(r == 20) {
+    return 0;
+  }
+  return 1;
+}
+
+int KissatExp(nodecircuit::Circuit &gf, nodecircuit::Circuit &rf, std::vector<bool> &result, int gate_encoding, int target) {
+  std::vector<int> inputs;
+  SatExp2(gf, rf, result, gate_encoding, &inputs);
+  kissat *S = kissat_init();
+  if(target == 1) {
+    kissat_set_configuration(S, "sat");
+  }
+  else if(target == 2) {
+    kissat_set_configuration(S, "unsat");
+  }
+  char *argv[2];
+  argv[0] = (char*)malloc(20);
+  argv[1] = (char*)malloc(20);
+  strcpy(argv[0], "hoge");
+  strcpy(argv[1], dimacsname);
+  int r = kissat_application(S, 2, argv);
+  free(argv[0]);
+  free(argv[1]);
+  if(r == 10) {
+    for(int v : inputs) {
+      if(v == -1) {
+	result.push_back(1);
+      }
+      else if(v == -2) {
+	result.push_back(0);
+      }
+      else if(Value(S, v + 1)) {
+	result.push_back(1);
+      }
+      else {
+	result.push_back(0);
+      }
+    }
+    kissat_release(S);
+    return 0;
+  }
+  if(r == 20) {
+    kissat_release(S);
+    return 0;
+  }
+  kissat_release(S);
+  return 1;
+}
+
