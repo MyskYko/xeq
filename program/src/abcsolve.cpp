@@ -258,17 +258,19 @@ int AbcSolve(nodecircuit::Circuit &gf, nodecircuit::Circuit &rf, std::vector<boo
   Gia_Man_t *pGia = Ckt2Gia(miter, gate_encoding);
   Cec_ParCec_t ParsCec, *pPars = &ParsCec;
   Cec_ManCecSetDefaultParams(pPars);
-  //pPars->nBTLimit = 0;
-  //pPars->fSilent = 1;
   //pPars->TimeLimit = 90;
 #ifndef NDEBUG
   pPars->fVerbose = 1;
+#else
+  pPars->fSilent = 1;
 #endif
   pPars->fNaive = 1;
+  pPars->nBTLimit = 100;
   Dar_LibStart();
   int r = cec(pGia, pPars);
   if(r == -1) {
     pPars->fNaive = 0;
+    pPars->nBTLimit = 1000;
     r = cec(pGia, pPars);
   }
   if(r == -1) {
