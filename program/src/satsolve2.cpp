@@ -6,7 +6,7 @@
 #include <cadical.hpp>
 extern "C" {
 #include <kissat.h>
-#include <application.h>
+#include <parse.h>
 }
 
 #include "satsolve.h"
@@ -485,14 +485,24 @@ int KissatSolve(nodecircuit::Circuit &gf, nodecircuit::Circuit &rf, std::vector<
 }
 
 int CadicalExp(nodecircuit::Circuit &gf, nodecircuit::Circuit &rf, std::vector<bool> &result, int gate_encoding) {
-  std::vector<int> inputs;
-  SatExp2(gf, rf, result, gate_encoding, &inputs);
+  // write dimacs
+  size_t bufsize;
+  char *buf;
+  FILE *f = open_memstream(&buf, &bufsize);
+  SatExp2(gf, rf, result, gate_encoding, f);
+  fclose(f);
+  // solver setting
   CaDiCaL::Solver S;
+  // read dimacs
   int vars;
-  S.read_dimacs(dimacsname, vars);
+  f = fmemopen(buf, bufsize, "r");
+  S.read_dimacs(f, "hoge", vars);
+  fclose(f);
+  free(buf);
+  // solve
   int r = Solve(S);
   if(r == 10) {
-    for(int v : inputs) {
+    for(int v : inputvariables) {
       if(v == -1) {
 	result.push_back(1);
       }
@@ -515,8 +525,13 @@ int CadicalExp(nodecircuit::Circuit &gf, nodecircuit::Circuit &rf, std::vector<b
 }
 
 int KissatExp(nodecircuit::Circuit &gf, nodecircuit::Circuit &rf, std::vector<bool> &result, int gate_encoding, int target) {
-  std::vector<int> inputs;
-  SatExp2(gf, rf, result, gate_encoding, &inputs);
+  // write dimacs
+  size_t bufsize;
+  char *buf;
+  FILE *f = open_memstream(&buf, &bufsize);
+  SatExp2(gf, rf, result, gate_encoding, f);
+  fclose(f);
+  // solver setting
   kissat *S = kissat_init();
   if(target == 1) {
     kissat_set_configuration(S, "sat");
@@ -524,16 +539,20 @@ int KissatExp(nodecircuit::Circuit &gf, nodecircuit::Circuit &rf, std::vector<bo
   else if(target == 2) {
     kissat_set_configuration(S, "unsat");
   }
-  char *argv[2];
-  argv[0] = (char*)malloc(20);
-  argv[1] = (char*)malloc(20);
-  strcpy(argv[0], "hoge");
-  strcpy(argv[1], dimacsname);
-  int r = kissat_application(S, 2, argv);
-  free(argv[0]);
-  free(argv[1]);
+  // read dimacs
+  int vars;
+  uint64_t lines;
+  file f2;
+  f = fmemopen(buf, bufsize, "r");
+  kissat_read_already_open_file(&f2, f, "hoge");
+  kissat_parse_dimacs(S, (strictness)1, &f2, &lines, &vars);
+  kissat_close_file (&f2);
+  fclose(f);
+  free(buf);
+  // solve
+  int r = Solve(S);
   if(r == 10) {
-    for(int v : inputs) {
+    for(int v : inputvariables) {
       if(v == -1) {
 	result.push_back(1);
       }
