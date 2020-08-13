@@ -5,8 +5,8 @@ set(CMAKE_CXX_STANDARD_REQUIRED ON)
 
 add_subdirectory(lib)
 
-add_compile_options(-g -O3)
-#add_compile_options(-O3 -DNDEBUG)
+#add_compile_options(-g -O3)
+add_compile_options(-O3 -DNDEBUG)
 include_directories(${CMAKE_CURRENT_SOURCE_DIR}/include)
 
 file(GLOB FILENAMES ${CMAKE_CURRENT_SOURCE_DIR}/src/*.cpp)

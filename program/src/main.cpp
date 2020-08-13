@@ -3,6 +3,8 @@
 #include <algorithm>
 
 #include "node.h"
+#include "abcsolve.h"
+#include "satsolve.h"
 
 int main(int argc, char **argv) {
   if(argc < 4) {
@@ -46,6 +48,14 @@ int main(int argc, char **argv) {
   }
   
   // Solve(g, r, result);
+  int res;
+  res = AbcSolve(g, r, result, 1);
+  if(res) {
+    res = KissatExp(g, r, result, 4);
+  }
+  if(res) {
+    return 1;
+  }
 
   std::ofstream f(oname);
   if(!f) {
